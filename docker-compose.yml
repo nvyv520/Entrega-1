@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  postgres-db:
+    image: postgres:15-alpine
+    container_name: Entrega1_postgres
+    environment:
+      POSTGRES_DB: Entrega1_db
+      POSTGRES_USER: Tingeso1
+      POSTGRES_PASSWORD: 22026
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - siga-network
+
+volumes:
+  postgres_data:
+
+networks:
+  siga-network:
+    driver: bridge
