@@ -29,5 +29,5 @@ public class CareerEntity {
     private String status;
 
     @Column (nullable = false)
-    private Integer durationSemesters;
+    private Integer duration;
 }

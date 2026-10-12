@@ -5,27 +5,24 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Entity
-@Table(
-    name = "study_plans",
-    uniqueConstraints = @UniqueConstraint(columnNames = {"career_id", "identifier"})
-)
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
+@Entity 
+@Table (name = "study_plans")
+@Data 
+@NoArgsConstructor 
+@AllArgsConstructor 
 
 public class StudyPlanEntity {
-    @Id
+    @Id 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column (nullable = false)
     private String identifier;
 
-    @Column(nullable = false)
+    @Column (nullable = false)
     private String status;
 
     @ManyToOne
-    @JoinColumn(name = "career_id", nullable = false)
+    @JoinColumn (name = "career_id", nullable = false)
     private CareerEntity career;
 }

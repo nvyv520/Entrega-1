@@ -5,15 +5,14 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-
-@Entity
-@Table(name = "students")
+@Entity 
+@Table (name = "students")
 @Data 
-@NoArgsConstructor
+@NoArgsConstructor 
 @AllArgsConstructor 
 
 public class StudentEntity {
-    @Id
+    @Id 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
@@ -33,10 +32,10 @@ public class StudentEntity {
     private String status;
 
     @ManyToOne
-    @JoinColumn(name = "career_id", nullable = false)
+    @JoinColumn (name = "career_id", nullable = false)
     private CareerEntity career;
 
     @ManyToOne
-    @JoinColumn(name = "study_plan_id", nullable = false)
+    @JoinColumn (name = "study_plan_id", nullable = false)
     private StudyPlanEntity studyPlan;
 }
