@@ -2,15 +2,17 @@ package SIGA.backend.entities;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.util.HashSet;
 import java.util.Set;
 
 @Entity 
-@Table (name = "subjects")
-@Data 
+@Table (name = "subjects", uniqueConstraints = @UniqueConstraint(columnNames = {"study_plan_id", "code"}))
+@Getter
+@Setter
 @NoArgsConstructor 
 @AllArgsConstructor 
 
@@ -40,7 +42,7 @@ public class SubjectEntity {
     @Column (nullable = false)
     private Integer sct;
 
-    @ManyToOne
+    @ManyToOne (fetch = FetchType.LAZY)
     @JoinColumn (name = "study_plan_id", nullable = false)
     private StudyPlanEntity studyPlan;
 

@@ -2,12 +2,14 @@ package SIGA.backend.entities;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity 
-@Table (name = "study_plans")
-@Data 
+@Table (name = "study_plans", uniqueConstraints = @UniqueConstraint(columnNames = {"career_id", "identifier"}))
+@Getter
+@Setter
 @NoArgsConstructor 
 @AllArgsConstructor 
 
@@ -20,9 +22,10 @@ public class StudyPlanEntity {
     private String identifier;
 
     @Column (nullable = false)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private StudyPlanStatus status;
 
-    @ManyToOne
+    @ManyToOne (fetch = FetchType.LAZY)
     @JoinColumn (name = "career_id", nullable = false)
     private CareerEntity career;
 }

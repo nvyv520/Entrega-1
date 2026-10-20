@@ -1,7 +1,7 @@
 package SIGA.backend.repositories;
 
-import SIGA.backend.entities.CareerEntity;
 import SIGA.backend.entities.StudyPlanEntity;
+import SIGA.backend.entities.StudyPlanStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -11,18 +11,18 @@ import java.util.Optional;
 
 @Repository 
 public interface StudyPlanRepository extends JpaRepository<StudyPlanEntity, Long> {
-    // find by identifier
-    Optional<StudyPlanEntity> findByIdentifier(String identifier);
-
     // find by status 
-    List<StudyPlanEntity> findByStatus(String status);
-
-    // find by career
-    List<StudyPlanEntity> findByCareer(CareerEntity career);
+    List<StudyPlanEntity> findByStatus(StudyPlanStatus status);
 
     // find by career id
     List<StudyPlanEntity> findByCareerId(Long careerId);
 
-    // exists by identifier 
-    boolean existsByIdentifier(String identifier);
+    // find by career id and identifier
+    Optional<StudyPlanEntity> findByCareerIdAndIdentifier(Long careerId, String identifier);
+
+    // exists by career id
+    boolean existsByCareerId(Long careerId);
+
+    // exists by career id and identifier 
+    boolean existsByCareerIdAndIdentifier(Long careerId, String identifier);
 }

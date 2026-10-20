@@ -1,6 +1,7 @@
 package SIGA.backend.repositories;
 
 import SIGA.backend.entities.TeacherEntity;
+import SIGA.backend.entities.Status;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -16,11 +17,11 @@ public interface TeacherRepository extends JpaRepository<TeacherEntity, Long> {
     Optional<TeacherEntity> findByEmail(String email);
 
     // find by status
-    List<TeacherEntity> findByStatus(String status);
+    List<TeacherEntity> findByStatus(Status status);
 
     // validations
-    boolean existByRut(String rut);
-    boolean existByEmail(String email);
+    boolean existsByRut(String rut);
+    boolean existsByEmail(String email);
 
     // find by name
     List<TeacherEntity> findByFirstNameContainsIgnoreCase(String firstName);

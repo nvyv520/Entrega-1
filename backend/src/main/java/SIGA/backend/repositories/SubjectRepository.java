@@ -1,6 +1,5 @@
 package SIGA.backend.repositories;
 
-import SIGA.backend.entities.StudyPlanEntity;
 import SIGA.backend.entities.SubjectEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -10,17 +9,11 @@ import java.util.Optional;
 
 @Repository 
 public interface SubjectRepository extends JpaRepository<SubjectEntity, Long> {
-    // find by code
-    Optional<SubjectEntity> findByCode(String code);
-
     // find by name
     List<SubjectEntity> findByNameContainingIgnoreCase(String name);
 
     // find by semester
     List<SubjectEntity> findBySemester(Integer semester);
-
-    // find by study plan
-    List<SubjectEntity> findByStudyPlan(StudyPlanEntity studyPlan);
 
     // find by study plan id
     List<SubjectEntity> findByStudyPlanId(Long studyPlanId);

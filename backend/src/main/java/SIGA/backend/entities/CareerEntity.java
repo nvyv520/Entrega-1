@@ -1,32 +1,35 @@
 package SIGA.backend.entities;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
 @Entity 
 @Table (name = "careers")
-@Data 
-@NoArgsConstructor 
-@AllArgsConstructor 
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 
 public class CareerEntity {
     @Id 
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column (unique = true, nullable = false)
+    @Column (unique = true, nullable = false, length = 6)
     private String code;
 
-    @Column (nullable = false)
+    @Column (nullable = false, length = 100)
     private String name;
 
-    @Column (nullable = false)
+    @Column (nullable = false, length = 1000)
     private String description;
 
     @Column (nullable = false)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private Status status;
 
     @Column (nullable = false)
     private Integer duration;

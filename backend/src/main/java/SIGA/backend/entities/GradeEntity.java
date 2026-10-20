@@ -2,12 +2,16 @@ package SIGA.backend.entities;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.math.BigDecimal;
 
 @Entity 
 @Table (name = "grades")
-@Data 
+@Getter
+@Setter
 @NoArgsConstructor 
 @AllArgsConstructor 
 
@@ -21,8 +25,9 @@ public class GradeEntity {
     private EnrollmentEntity enrollment;
 
     @Column (nullable = false)
-    private Double finalGrade;
+    private BigDecimal finalGrade;
 
     @Column (nullable = false)
-    private String result;
+    @Enumerated(EnumType.STRING)
+    private GradeResult result;
 }

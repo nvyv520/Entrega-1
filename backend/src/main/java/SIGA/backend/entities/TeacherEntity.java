@@ -35,5 +35,9 @@ public class TeacherEntity {
     private String academicDegree;
 
     @Column (nullable = false)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private Status status;
+
+    @Column (unique = true)
+    private String keycloakSubject;
 }

@@ -2,14 +2,16 @@ package SIGA.backend.entities;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.LocalDate;
 
 @Entity 
-@Table (name = "enrollments")
-@Data 
+@Table (name = "enrollments", uniqueConstraints = @UniqueConstraint(columnNames = {"student_id", "section_id"}))
+@Getter
+@Setter
 @NoArgsConstructor 
 @AllArgsConstructor 
 
@@ -18,15 +20,15 @@ public class EnrollmentEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne (fetch = FetchType.LAZY)
     @JoinColumn (name = "student_id", nullable = false)
     private StudentEntity student;
 
-    @ManyToOne
+    @ManyToOne (fetch = FetchType.LAZY)
     @JoinColumn (name = "section_id", nullable = false)
     private SectionEntity section;
 
-    @ManyToOne
+    @ManyToOne (fetch = FetchType.LAZY)
     @JoinColumn (name = "academic_period_id", nullable = false)
     private AcademicPeriodEntity academicPeriod;
 
@@ -34,5 +36,6 @@ public class EnrollmentEntity {
     private LocalDate enrollmentDate;
 
     @Column (nullable = false)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private EnrollmentStatus status;
 }

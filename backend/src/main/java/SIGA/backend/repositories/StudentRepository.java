@@ -1,8 +1,7 @@
 package SIGA.backend.repositories;
 
-import SIGA.backend.entities.CareerEntity;
 import SIGA.backend.entities.StudentEntity;
-import SIGA.backend.entities.StudyPlanEntity;
+import SIGA.backend.entities.StudentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -18,16 +17,10 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
     Optional<StudentEntity> findByEmail(String email);
 
     // find by status
-    List<StudentEntity> findByStatus(String status);
-
-    // find by career
-    List<StudentEntity> findByCareer(CareerEntity career);
+    List<StudentEntity> findByStatus(StudentStatus status);
 
     // find by career id
     List<StudentEntity> findByCareerId(Long careerId);
-
-    // find by study plan
-    List<StudentEntity> findByStudyPlan(StudyPlanEntity studyPlan);
 
     // find by study plan id
     List<StudentEntity> findByStudyPlanId(Long studyPlanId);
@@ -35,6 +28,7 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
     // validations
     boolean existsByRut(String rut);
     boolean existsByEmail(String email);
+    boolean existsByCareerId(Long careerId);
 
     // find by name
     List<StudentEntity> findByFirstNameContainingIgnoreCase(String firstName);

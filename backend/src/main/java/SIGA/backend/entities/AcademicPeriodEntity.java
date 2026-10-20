@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity 
-@Table (name = "academic_periods")
+@Table (name = "academic_periods", uniqueConstraints = @UniqueConstraint(columnNames = {"year", "semester"}))
 @Data 
 @NoArgsConstructor 
 @AllArgsConstructor 
@@ -26,5 +26,6 @@ public class AcademicPeriodEntity {
     private String code;
 
     @Column (nullable = false)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private AcademicPeriodStatus status;
 }
