@@ -29,6 +29,7 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
     boolean existsByRut(String rut);
     boolean existsByEmail(String email);
     boolean existsByCareerId(Long careerId);
+    boolean existsByStudyPlanId(Long studyPlanId);
 
     // find by name
     List<StudentEntity> findByFirstNameContainingIgnoreCase(String firstName);

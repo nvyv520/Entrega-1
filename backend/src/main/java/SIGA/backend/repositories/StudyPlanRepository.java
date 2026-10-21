@@ -25,4 +25,7 @@ public interface StudyPlanRepository extends JpaRepository<StudyPlanEntity, Long
 
     // exists by career id and identifier 
     boolean existsByCareerIdAndIdentifier(Long careerId, String identifier);
+
+    // find study plan by career id
+    Optional<StudyPlanEntity> findByCareerIdAndStatus(Long careerId, StudyPlanStatus status);
 }

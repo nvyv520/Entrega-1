@@ -91,12 +91,13 @@ public class CareerService {
     // update career status
     @Transactional
     public CareerResponseDTO updateCareerStatus(Long id, Status status) {
-        CareerEntity career = findCareerById(id);
 
         // validate status
         if (status == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, " El estado es obligatorio");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El estado es obligatorio");
         }
+
+        CareerEntity career = findCareerById(id);
 
         career.setStatus(status);
 

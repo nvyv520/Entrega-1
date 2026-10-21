@@ -23,4 +23,5 @@ public interface SubjectRepository extends JpaRepository<SubjectEntity, Long> {
 
     // validations
     boolean existsByStudyPlanIdAndCode(Long studyPlanId, String code);
+    boolean existsByStudyPlanId(Long studyPlanId);
 }
