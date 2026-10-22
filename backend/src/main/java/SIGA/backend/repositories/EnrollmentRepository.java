@@ -26,4 +26,7 @@ public interface EnrollmentRepository extends JpaRepository<EnrollmentEntity, Lo
 
     // validations
     boolean existsByStudentIdAndSectionId(Long studentId, Long sectionId);
+
+    // check enrollments associated with a subject
+    boolean existsBySection_Subject_Id(Long subjectId);
 }

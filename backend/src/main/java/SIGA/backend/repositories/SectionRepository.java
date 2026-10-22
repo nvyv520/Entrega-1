@@ -27,4 +27,7 @@ public interface SectionRepository extends JpaRepository<SectionEntity, Long> {
 
     // validations
     boolean existsBySubjectIdAndAcademicPeriodId(Long subjectId, Long academicPeriodId);
+
+    // check if subject has associated sections
+    boolean existsBySubjectId(Long subjectId);
 }

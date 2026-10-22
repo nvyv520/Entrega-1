@@ -24,4 +24,10 @@ public interface SubjectRepository extends JpaRepository<SubjectEntity, Long> {
     // validations
     boolean existsByStudyPlanIdAndCode(Long studyPlanId, String code);
     boolean existsByStudyPlanId(Long studyPlanId);
+
+    // check if subject is used as a prerequisite
+    boolean existsByPrerequisites_Id(Long id);
+
+    // find subjects that use another subject as prerequisite
+    List<SubjectEntity> findByPrerequisites_Id(Long prerequisiteId);
 }
