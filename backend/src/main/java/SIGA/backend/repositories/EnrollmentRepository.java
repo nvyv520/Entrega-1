@@ -1,11 +1,12 @@
 package SIGA.backend.repositories;
 
-import SIGA.backend.entities.EnrollmentEntity;
-import SIGA.backend.entities.EnrollmentStatus;
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.List;
+import SIGA.backend.entities.EnrollmentEntity;
+import SIGA.backend.entities.EnrollmentStatus;
 
 @Repository 
 public interface EnrollmentRepository extends JpaRepository<EnrollmentEntity, Long> {
@@ -29,4 +30,7 @@ public interface EnrollmentRepository extends JpaRepository<EnrollmentEntity, Lo
 
     // check enrollments associated with a subject
     boolean existsBySection_Subject_Id(Long subjectId);
+
+    // check if student has enrollments
+    boolean existsByStudentId(Long studentId);
 }

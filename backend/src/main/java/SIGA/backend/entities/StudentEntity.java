@@ -18,23 +18,23 @@ public class StudentEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column (unique = true, nullable = false)
+    @Column (unique = true, nullable = false, length = 12)
     private String rut;
 
-    @Column (nullable = false)
+    @Column (nullable = false, length = 100)
     private String firstName;
 
-    @Column (nullable = false)
+    @Column (nullable = false, length = 100)
     private String lastName;
 
-    @Column (unique = true, nullable = false)
+    @Column (unique = true, nullable = false, length = 300)
     private String email;
 
     @Column (nullable = false)
     @Enumerated(EnumType.STRING)
     private StudentStatus status;
 
-    @Column (unique = true)
+    @Column (unique = true, length = 300)
     private String keycloakSubject;
 
     @ManyToOne (fetch = FetchType.LAZY)

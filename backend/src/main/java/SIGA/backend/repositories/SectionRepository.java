@@ -1,5 +1,6 @@
 package SIGA.backend.repositories;
 
+import SIGA.backend.entities.AcademicPeriodStatus;
 import SIGA.backend.entities.SectionEntity;
 import SIGA.backend.entities.Status;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -30,4 +31,10 @@ public interface SectionRepository extends JpaRepository<SectionEntity, Long> {
 
     // check if subject has associated sections
     boolean existsBySubjectId(Long subjectId);
+
+    // check if teacher has associated sections
+    boolean existsByTeacherId(Long teacherId);
+
+    // check if teacher has sections in open academic periods
+    boolean existsByTeacherIdAndAcademicPeriod_Status(Long teacherId, AcademicPeriodStatus status);
 }
