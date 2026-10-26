@@ -33,4 +33,7 @@ public interface EnrollmentRepository extends JpaRepository<EnrollmentEntity, Lo
 
     // check if student has enrollments
     boolean existsByStudentId(Long studentId);
+
+    // check if period has enrollments
+    boolean existsByAcademicPeriodId(Long academicPeriodId);
 }

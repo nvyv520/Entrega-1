@@ -20,4 +20,7 @@ public interface PeriodMatriculationRepository extends JpaRepository<PeriodMatri
 
     // check if student has academic period matriculations
     boolean existsByStudentId(Long studentId);
+
+    // check if period has matriculations
+    boolean existsByAcademicPeriodId(Long academicPeriodId);
 }

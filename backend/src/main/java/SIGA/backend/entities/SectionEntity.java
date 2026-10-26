@@ -1,9 +1,10 @@
 package SIGA.backend.entities;
 
 import jakarta.persistence.*;
+
 import lombok.AllArgsConstructor;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Getter;
 import lombok.Setter;
 
 import java.util.HashSet;
@@ -24,15 +25,15 @@ public class SectionEntity {
     @Version
     private Long version;
 
-    @ManyToOne (fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn (name = "subject_id", nullable = false)
     private SubjectEntity subject;
 
-    @ManyToOne (fetch = FetchType.LAZY)
+    @ManyToOne 
     @JoinColumn (name = "academic_period_id", nullable = false)
     private AcademicPeriodEntity academicPeriod;
 
-    @ManyToOne (fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn (name = "teacher_id", nullable = false)
     private TeacherEntity teacher;
 
@@ -47,7 +48,7 @@ public class SectionEntity {
     private Status status;
 
     @ElementCollection
-    @CollectionTable (name = "section_schedule_blocks", joinColumns = @JoinColumn (name = "section_id"))
-    @Column (name = "schedule_block", nullable = false)
-    private Set<String> scheduleBlocks = new HashSet<>();
+    @CollectionTable (name = "section_blocks", joinColumns = @JoinColumn (name = "section_id"))
+    @Column (name = "blocks", nullable = false, length = 2)
+    private Set<String> blocks = new HashSet<>();
 }

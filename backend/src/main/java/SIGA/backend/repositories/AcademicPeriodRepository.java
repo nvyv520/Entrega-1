@@ -2,6 +2,7 @@ package SIGA.backend.repositories;
 
 import SIGA.backend.entities.AcademicPeriodEntity;
 import SIGA.backend.entities.AcademicPeriodStatus;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -21,4 +22,10 @@ public interface AcademicPeriodRepository extends JpaRepository<AcademicPeriodEn
 
     // find by status
     List<AcademicPeriodEntity> findByStatus(AcademicPeriodStatus status);
+
+    // exist by code
+    boolean existsByCode(String code);
+
+    // exist by year and semester
+    boolean existsByYearAndSemester(Integer year, Integer semester);
 }
