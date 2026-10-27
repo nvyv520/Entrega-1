@@ -95,7 +95,7 @@ public class AcademicPeriodController {
     })
     public ResponseEntity<AcademicPeriodResponseDTO> createAcademicPeriod(@Valid @RequestBody AcademicPeriodRequestDTO period) {
         AcademicPeriodResponseDTO newPeriod = academicPeriodService.createAcademicPeriod(period);
-        URI location = URI.create("/api/academic-period/" + newPeriod.getId());
+        URI location = URI.create("/api/academic-periods/" + newPeriod.getId());
 
         return ResponseEntity.created(location).body(newPeriod);
     }

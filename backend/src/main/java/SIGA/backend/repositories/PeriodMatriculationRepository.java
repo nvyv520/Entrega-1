@@ -1,6 +1,7 @@
 package SIGA.backend.repositories;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -9,13 +10,17 @@ import SIGA.backend.entities.PeriodMatriculationEntity;
 
 @Repository 
 public interface PeriodMatriculationRepository extends JpaRepository<PeriodMatriculationEntity, Long> {
-    // find by student id
+    
+    // find by student 
     List<PeriodMatriculationEntity> findByStudentId(Long studentId);
 
-    // find by academic period id
+    // find by academic period 
     List<PeriodMatriculationEntity> findByAcademicPeriodId(Long academicPeriodId);
 
-    // validations
+    // find by student and academic period
+    Optional<PeriodMatriculationEntity> findByStudentIdAndAcademicPeriodId(Long studentId, Long academicPeriodId);
+
+    // ver si existe por estudiante y periodo academico
     boolean existsByStudentIdAndAcademicPeriodId(Long studentId, Long academicPeriodId);
 
     // check if student has academic period matriculations

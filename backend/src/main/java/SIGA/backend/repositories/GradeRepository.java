@@ -18,4 +18,11 @@ public interface GradeRepository extends JpaRepository<GradeEntity, Long> {
 
     // validations
     boolean existsByEnrollmentId(Long enrollmentId);
+
+    // check if student approved a subject
+    boolean existsByEnrollment_Student_IdAndEnrollment_Section_Subject_IdAndResult(
+            Long studentId,
+            Long subjectId,
+            GradeResult result
+    );
 }
