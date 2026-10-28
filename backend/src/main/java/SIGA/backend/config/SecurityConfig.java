@@ -14,6 +14,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 public class SecurityConfig {
@@ -33,6 +34,26 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/error"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/careers", "/api/careers/**")
+                                .hasAnyRole("ADMIN", "TEACHER", "STUDENT")
+
+                        .requestMatchers("/api/careers", "/api/careers/**")
+                                .hasRole("ADMIN")
+
+                        .requestMatchers(HttpMethod.GET, "/api/study-plans", "/api/study-plans/**")
+                                .hasAnyRole("ADMIN", "TEACHER", "STUDENT")
+
+                        .requestMatchers("/api/study-plans", "/api/study-plans/**")
+                                .hasRole("ADMIN")
+
+                        // Student
+                        .requestMatchers("/api/students", "/api/students/**")
+                                .hasRole("ADMIN")
+
+                        // Teachers
+                        .requestMatchers("/api/teachers", "/api/teachers/**")
+                                .hasRole("ADMIN")
+                                
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().authenticated()
                 )

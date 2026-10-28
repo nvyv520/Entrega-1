@@ -162,4 +162,23 @@ public class StudentController {
         studentService.deleteStudent(id);
         return ResponseEntity.noContent().build();
     }
+
+    // link student with Keycloak
+    @PatchMapping("/{id}/keycloak")
+    @Operation(summary = "Link student with Keycloak user")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Student linked successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid Keycloak user ID"),
+            @ApiResponse(responseCode = "403", description = "Access denied"),
+            @ApiResponse(responseCode = "404", description = "Student or Keycloak user not found"),
+            @ApiResponse(responseCode = "409", description = "Invalid or duplicate Keycloak association"),
+            @ApiResponse(responseCode = "502", description = "Keycloak communication error")
+    })
+    public ResponseEntity<StudentResponseDTO> linkStudentKeycloak(
+            @PathVariable Long id,
+            @RequestParam String keycloakSubject) {
+
+        StudentResponseDTO updated = studentService.linkStudentKeycloak(id, keycloakSubject);
+        return ResponseEntity.ok(updated);
+    }
 }

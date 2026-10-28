@@ -8,6 +8,7 @@ import SIGA.backend.dtos.TeacherResponseDTO;
 import SIGA.backend.entities.Status;
 
 import SIGA.backend.repositories.SectionRepository;
+import SIGA.backend.repositories.StudentRepository;
 
 import SIGA.backend.entities.AcademicPeriodStatus;
 
@@ -27,6 +28,8 @@ public class TeacherService {
 
     private final TeacherRepository teacherRepository;
     private final SectionRepository sectionRepository;
+    private final StudentRepository studentRepository;
+    private final KeycloakAdminService keycloakAdminService;
 
     // retrieve all teachers
     @Transactional (readOnly = true)
@@ -187,5 +190,49 @@ public class TeacherService {
 
         teacherRepository.delete(teacher);
     }
+
+
+    // link teacher with Keycloak
+    @Transactional
+    public TeacherResponseDTO linkTeacherKeycloak(Long id, String keycloakSubject) {
+
+        TeacherEntity teacher = findTeacherById(id);
+
+        if (keycloakSubject == null || keycloakSubject.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El identificador de Keycloak es obligatorio");
+        }
+
+        String subject = keycloakSubject.trim();
+
+        // verificar que la cuenta no este asociada a otro docente
+        teacherRepository.findByKeycloakSubject(subject).ifPresent(existing -> {
+            if (!existing.getId().equals(id)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "La cuenta de Keycloak ya esta asociada a otro docente");
+            }
+        });
+
+        // no permitir reemplazar una cuenta existente
+        if (teacher.getKeycloakSubject() != null
+                && !teacher.getKeycloakSubject().equals(subject)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "El docente ya tiene una cuenta de Keycloak asociada");
+        }
+
+        // verificar que la cuenta no pertenezca a un estudiante
+        if (studentRepository.findByKeycloakSubject(subject).isPresent()) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "La cuenta de Keycloak ya esta asociada a un estudiante");
+        }
+
+        // validate Keycloak user and role
+        keycloakAdminService.validateUserRole(subject, "TEACHER");
+
+        // vincular cuenta
+        teacher.setKeycloakSubject(subject);
+
+        TeacherEntity saved = teacherRepository.save(teacher);
+        return new TeacherResponseDTO(saved);
+    }
+
 
 }

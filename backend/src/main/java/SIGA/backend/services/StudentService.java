@@ -15,6 +15,7 @@ import SIGA.backend.repositories.CareerRepository;
 import SIGA.backend.repositories.StudentRepository;
 import SIGA.backend.repositories.EnrollmentRepository;
 import SIGA.backend.repositories.PeriodMatriculationRepository;
+import SIGA.backend.repositories.TeacherRepository;
 
 import SIGA.backend.dtos.StudentRequestDTO;
 import SIGA.backend.dtos.StudentResponseDTO;
@@ -40,6 +41,8 @@ public class StudentService {
     private final EnrollmentRepository enrollmentRepository;
     private final PeriodMatriculationRepository periodMatriculationRepository;
     private final GradeRepository gradeRepository;
+    private final TeacherRepository teacherRepository;
+    private final KeycloakAdminService keycloakAdminService;
     
     // retrieve all student 
     @Transactional (readOnly = true)
@@ -291,5 +294,50 @@ public class StudentService {
         }
 
         studentRepository.delete(student);
+    }
+
+    // link student with Keycloak
+    @Transactional
+    public StudentResponseDTO linkStudentKeycloak(Long id, String keycloakSubject) {
+
+        StudentEntity student = findStudentById(id);
+
+        if (keycloakSubject == null || keycloakSubject.isBlank()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "El identificador de Keycloak es obligatorio");
+        }
+
+        String subject = keycloakSubject.trim();
+
+        studentRepository.findByKeycloakSubject(subject).ifPresent(existing -> {
+            if (!existing.getId().equals(id)) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "La cuenta de Keycloak ya esta asociada a otro estudiante");
+            }
+        });
+
+        if (student.getKeycloakSubject() != null
+                && !student.getKeycloakSubject().equals(subject)) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "El estudiante ya tiene una cuenta de Keycloak asociada");
+        }
+
+        // verificar que la cuenta no pertenezca a un docente
+        if (teacherRepository.findByKeycloakSubject(subject).isPresent()) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "La cuenta de Keycloak ya esta asociada a un docente");
+        }
+
+        // validate Keycloak user and role
+        keycloakAdminService.validateUserRole(subject, "STUDENT");
+
+        student.setKeycloakSubject(subject);
+
+        StudentEntity saved = studentRepository.save(student);
+        return new StudentResponseDTO(saved);
     }
 }

@@ -27,5 +27,7 @@ public interface TeacherRepository extends JpaRepository<TeacherEntity, Long> {
     List<TeacherEntity> findByFirstNameContainsIgnoreCase(String firstName);
     List<TeacherEntity> findByLastNameContainsIgnoreCase(String lastName);
 
+    // find by Keycloak subject
+Optional<TeacherEntity> findByKeycloakSubject(String keycloakSubject);
 
 }

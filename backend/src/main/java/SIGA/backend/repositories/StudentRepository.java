@@ -34,4 +34,7 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
     // find by name
     List<StudentEntity> findByFirstNameContainingIgnoreCase(String firstName);
     List<StudentEntity> findByLastNameContainingIgnoreCase(String lastName);
+
+    // find by Keycloak subject
+Optional<StudentEntity> findByKeycloakSubject(String keycloakSubject);
 }
