@@ -24,7 +24,7 @@ public class GradeEntity {
     @JoinColumn (name = "enrollment_id", unique = true, nullable = false)
     private EnrollmentEntity enrollment;
 
-    @Column (nullable = false)
+    @Column (nullable = false, precision = 3, scale = 1)
     private BigDecimal finalGrade;
 
     @Column (nullable = false)
