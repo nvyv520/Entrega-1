@@ -54,7 +54,7 @@ public class TeacherService {
     // get teacher by rut 
     @Transactional (readOnly = true)
     public TeacherResponseDTO getTeacherByRut(String rut) {
-        TeacherEntity teacher = teacherRepository.findByRut(rut).orElseThrow(() ->
+        TeacherEntity teacher = teacherRepository.findByRut(rut.trim()).orElseThrow(() ->
                                 new ResponseStatusException(HttpStatus.NOT_FOUND, "Docente no encontrado"));
         return new TeacherResponseDTO(teacher);
     }
@@ -102,12 +102,12 @@ public class TeacherService {
 
         // create teacher
         TeacherEntity newTeacher = new TeacherEntity();
-        newTeacher.setRut(rut);
-        newTeacher.setFirstName(teacher.getFirstName());
-        newTeacher.setLastName(teacher.getLastName());
+        newTeacher.setRut(rut.trim());
+        newTeacher.setFirstName(teacher.getFirstName().trim());
+        newTeacher.setLastName(teacher.getLastName().trim());
         newTeacher.setEmail(email);
-        newTeacher.setProfessionalTitle(teacher.getProfessionalTitle());
-        newTeacher.setAcademicDegree(teacher.getAcademicDegree());
+        newTeacher.setProfessionalTitle(teacher.getProfessionalTitle().trim());
+        newTeacher.setAcademicDegree(teacher.getAcademicDegree().trim());
         newTeacher.setStatus(Status.ACTIVA);
 
         TeacherEntity saved = teacherRepository.save(newTeacher);
@@ -137,12 +137,12 @@ public class TeacherService {
         });
 
         // actualizar
-        current.setRut(rut);
-        current.setFirstName(teacher.getFirstName());
-        current.setLastName(teacher.getLastName());
+        current.setRut(rut.trim());
+        current.setFirstName(teacher.getFirstName().trim());
+        current.setLastName(teacher.getLastName().trim());
         current.setEmail(email);
-        current.setProfessionalTitle(teacher.getProfessionalTitle());
-        current.setAcademicDegree(teacher.getAcademicDegree());
+        current.setProfessionalTitle(teacher.getProfessionalTitle().trim());
+        current.setAcademicDegree(teacher.getAcademicDegree().trim());
 
         TeacherEntity saved = teacherRepository.save(current);
         return new TeacherResponseDTO(saved);

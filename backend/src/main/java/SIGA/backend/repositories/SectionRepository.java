@@ -41,4 +41,5 @@ public interface SectionRepository extends JpaRepository<SectionEntity, Long> {
 
     // check if period has sections
     boolean existsByAcademicPeriodId(Long academicPeriodId);
+    
 }

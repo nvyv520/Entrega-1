@@ -1,10 +1,12 @@
 package SIGA.backend.controllers;
 
 import SIGA.backend.entities.StudentStatus;
+
 import SIGA.backend.dtos.StudentRequestDTO;
 import SIGA.backend.dtos.StudentResponseDTO;
-import SIGA.backend.services.StudentService;
+import SIGA.backend.dtos.StudentAcademicHistoryDTO;
 
+import SIGA.backend.services.StudentService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -86,6 +88,19 @@ public class StudentController {
     public ResponseEntity<List<StudentResponseDTO>> getStudentsByStatus(@PathVariable StudentStatus status) {
         List<StudentResponseDTO> students = studentService.getStudentsByStatus(status);
         return ResponseEntity.ok(students);
+    }
+
+
+    // get student academic history
+    @GetMapping("/{id}/academic-history")
+    @Operation(summary = "Get student academic history")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Academic history retrieved successfully"),
+            @ApiResponse(responseCode = "404", description = "Student not found")
+    })
+    public ResponseEntity<List<StudentAcademicHistoryDTO>> getStudentAcademicHistory(@PathVariable Long id) {
+        List<StudentAcademicHistoryDTO> history = studentService.getStudentAcademicHistory(id);
+        return ResponseEntity.ok(history);
     }
 
 

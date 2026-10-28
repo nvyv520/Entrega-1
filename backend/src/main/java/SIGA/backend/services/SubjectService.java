@@ -101,7 +101,7 @@ public class SubjectService {
         if (theory == null || theory < 0 ||
             exercise == null || exercise < 0 ||
             lab == null || lab < 0) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lss horas correspondientes son obligatorias");
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Las horas correspondientes son obligatorias");
         }
 
         if ( theory + exercise + lab > 7) {
@@ -224,6 +224,15 @@ public class SubjectService {
         // no permitir cambiar la informacion academica
         if (enrollmentRepository.existsBySection_Subject_Id(id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puede modificar una asignatura con historial académico");
+        }
+
+        // no permitir cambiar horas TEL si tiene secciones
+        if (sectionRepository.existsBySubjectId(id) &&
+            (!current.getTheoryHours().equals(subject.getTheoryHours()) ||
+            !current.getExerciseHours().equals(subject.getExerciseHours()) ||
+            !current.getLaboratoryHours().equals(subject.getLaboratoryHours()))) {
+
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "No se pueden modificar las horas TEL de una asignatura con secciones");
         }
 
         // ver que no se este duplicando 

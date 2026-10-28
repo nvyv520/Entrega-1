@@ -5,6 +5,10 @@ import SIGA.backend.entities.GradeResult;
 import SIGA.backend.entities.EnrollmentEntity;
 import SIGA.backend.entities.EnrollmentStatus;
 import SIGA.backend.entities.AcademicPeriodStatus;
+import SIGA.backend.entities.AcademicPeriodEntity;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 
 import SIGA.backend.repositories.GradeRepository;
 import SIGA.backend.repositories.EnrollmentRepository;
@@ -29,6 +33,7 @@ public class GradeService {
 
     private final GradeRepository gradeRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final EntityManager entityManager;
 
     // get all grades
     @Transactional (readOnly = true)
@@ -142,6 +147,22 @@ public class GradeService {
     }
 
 
+    // lock academic period before modifying grades
+    private void lockOpenPeriod(Long periodId) {
+
+        AcademicPeriodEntity period = entityManager.find(AcademicPeriodEntity.class, periodId, LockModeType.PESSIMISTIC_WRITE);
+
+        if (period == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Periodo academico no encontrado");
+        }
+
+        if (period.getStatus() != AcademicPeriodStatus.ABIERTO) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "El periodo academico esta cerrado");
+        }
+    }
+
+
+
     // create grade 
     @Transactional 
     public GradeResponseDTO createGrade(GradeRequestDTO grade) {
@@ -150,6 +171,8 @@ public class GradeService {
         validateGradeData(grade);
 
         EnrollmentEntity enrollment = findEnrollmentById(grade.getEnrollmentId());
+        lockOpenPeriod(enrollment.getAcademicPeriod().getId());
+        entityManager.refresh(enrollment);
 
         // validate enrollment and academic period
         validateEnrollment(enrollment);
@@ -175,6 +198,8 @@ public class GradeService {
     @Transactional 
     public GradeResponseDTO updateGrade(Long id, GradeRequestDTO grade) {
         GradeEntity current = findGradeById(id);
+        lockOpenPeriod(current.getEnrollment().getAcademicPeriod().getId());
+        entityManager.refresh(current);
 
         // validate grade information
         validateGradeData(grade);

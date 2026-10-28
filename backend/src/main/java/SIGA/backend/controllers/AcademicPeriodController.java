@@ -128,4 +128,20 @@ public class AcademicPeriodController {
         academicPeriodService.deleteAcademicPeriod(id);
         return ResponseEntity.noContent().build();
     }
+
+
+
+    // close academic period
+    @PatchMapping("/{id}/close")
+    @Operation(summary = "Close academic period")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Academic period closed successfully"),
+            @ApiResponse(responseCode = "404", description = "Academic period not found"),
+            @ApiResponse(responseCode = "409", description = "Academic period cannot be closed")
+    })
+    public ResponseEntity<AcademicPeriodResponseDTO> closeAcademicPeriod(@PathVariable Long id) {
+        AcademicPeriodResponseDTO closedPeriod = academicPeriodService.closeAcademicPeriod(id);
+        return ResponseEntity.ok(closedPeriod);
+    }
+
 }

@@ -2,20 +2,23 @@ package SIGA.backend.services;
 
 import SIGA.backend.entities.CareerEntity;
 import SIGA.backend.entities.Status;
-import SIGA.backend.repositories.CareerRepository;
-
+import SIGA.backend.entities.EnrollmentEntity;
+import SIGA.backend.entities.GradeEntity;
 import SIGA.backend.entities.StudyPlanEntity;
 import SIGA.backend.entities.StudyPlanStatus;
-import SIGA.backend.repositories.StudyPlanRepository;
-
 import SIGA.backend.entities.StudentEntity;
 import SIGA.backend.entities.StudentStatus;
-import SIGA.backend.repositories.StudentRepository;
-import SIGA.backend.dtos.StudentRequestDTO;
-import SIGA.backend.dtos.StudentResponseDTO;
 
+import SIGA.backend.repositories.StudyPlanRepository;
+import SIGA.backend.repositories.GradeRepository;
+import SIGA.backend.repositories.CareerRepository;
+import SIGA.backend.repositories.StudentRepository;
 import SIGA.backend.repositories.EnrollmentRepository;
 import SIGA.backend.repositories.PeriodMatriculationRepository;
+
+import SIGA.backend.dtos.StudentRequestDTO;
+import SIGA.backend.dtos.StudentResponseDTO;
+import SIGA.backend.dtos.StudentAcademicHistoryDTO;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.ArrayList;
 
 @Service 
 @RequiredArgsConstructor 
@@ -35,6 +39,7 @@ public class StudentService {
     private final StudentRepository studentRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final PeriodMatriculationRepository periodMatriculationRepository;
+    private final GradeRepository gradeRepository;
     
     // retrieve all student 
     @Transactional (readOnly = true)
@@ -61,7 +66,7 @@ public class StudentService {
     // get student by rut 
     @Transactional (readOnly = true)
     public StudentResponseDTO getStudentByRut(String rut) {
-        StudentEntity student = studentRepository.findByRut(rut).orElseThrow(() ->
+        StudentEntity student = studentRepository.findByRut(rut.trim()).orElseThrow(() ->
                                 new ResponseStatusException(HttpStatus.NOT_FOUND, "Estudiante no encontrado"));
         return new StudentResponseDTO(student);
     }
@@ -87,6 +92,33 @@ public class StudentService {
         List<StudentEntity> students = studentRepository.findByStatus(status);
         return students.stream().map(StudentResponseDTO::new).toList();
     }
+
+
+    // get student academic history
+    @Transactional(readOnly = true)
+    public List<StudentAcademicHistoryDTO> getStudentAcademicHistory(Long id) {
+
+        // verificar que el estudiante existe
+        findStudentById(id);
+
+        // obtener las inscripciones del estudiante
+        List<EnrollmentEntity> enrollments = enrollmentRepository.findByStudentId(id);
+
+        List<StudentAcademicHistoryDTO> history = new ArrayList<>();
+
+        // recorrer las inscripciones
+        for (EnrollmentEntity enrollment : enrollments) {
+
+            // buscar la calificacion de cada inscripcion
+            GradeEntity grade = gradeRepository.findByEnrollmentId(enrollment.getId()).orElse(null);
+
+            // agregar la informacion al historial
+            history.add(new StudentAcademicHistoryDTO(enrollment, grade));
+        }
+
+        return history;
+    }
+
 
 
     // encontrar el plan activo
@@ -136,8 +168,8 @@ public class StudentService {
         // create student
         StudentEntity newStudent = new StudentEntity();
         newStudent.setRut(rut);
-        newStudent.setFirstName(student.getFirstName());
-        newStudent.setLastName(student.getLastName());
+        newStudent.setFirstName(student.getFirstName().trim());
+        newStudent.setLastName(student.getLastName().trim());
         newStudent.setEmail(email);
         newStudent.setStatus(StudentStatus.REGULAR);
         newStudent.setCareer(career);
@@ -213,8 +245,8 @@ public class StudentService {
 
         // actualizar la informacion del estudiante
         current.setRut(rut);
-        current.setFirstName(student.getFirstName());
-        current.setLastName(student.getLastName());
+        current.setFirstName(student.getFirstName().trim());
+        current.setLastName(student.getLastName().trim());
         current.setEmail(email);
         current.setCareer(career);
         current.setStudyPlan(studyPlan);

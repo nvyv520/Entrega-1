@@ -1,9 +1,18 @@
 
 package SIGA.backend.config;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Map;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
@@ -11,20 +20,65 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
+
+        return http
                 .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/v3/api-docs/**",
-                                "/api/**"
+                                "/error"
                         ).permitAll()
+                        .requestMatchers("/api/**").authenticated()
                         .anyRequest().authenticated()
                 )
-                .formLogin(form -> form.permitAll());
-
-        return http.build();
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt
+                                .jwtAuthenticationConverter(jwtAuthenticationConverter())
+                        )
+                )
+                .formLogin(form -> form.disable())
+                .httpBasic(basic -> basic.disable())
+                .build();
     }
 
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+
+        converter.setJwtGrantedAuthoritiesConverter(this::extractRoles);
+
+        return converter;
+    }
+
+    private Collection<GrantedAuthority> extractRoles(Jwt jwt) {
+
+        Collection<GrantedAuthority> authorities = new ArrayList<>();
+
+        Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
+
+        if (realmAccess != null) {
+
+            Object roles = realmAccess.get("roles");
+
+            if (roles instanceof Collection<?> roleList) {
+
+                for (Object role : roleList) {
+
+                    if (role instanceof String roleName) {
+                        authorities.add(
+                                new SimpleGrantedAuthority("ROLE_" + roleName)
+                        );
+                    }
+                }
+            }
+        }
+
+        return authorities;
+    }
 }

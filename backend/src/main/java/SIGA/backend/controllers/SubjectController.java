@@ -39,7 +39,7 @@ public class SubjectController {
     @GetMapping ("/{id}")
     @Operation (summary = "Get subject by id")
     @ApiResponse (responseCode = "404", description = "Subject not found")
-    public ResponseEntity<SubjectResponseDTO> getSubjectById(@PathVariable long id) {
+    public ResponseEntity<SubjectResponseDTO> getSubjectById(@PathVariable Long id) {
         SubjectResponseDTO subject = subjectService.getSubjectById(id);
         return ResponseEntity.ok(subject);
     }

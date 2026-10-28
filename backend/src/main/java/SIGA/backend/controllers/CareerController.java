@@ -64,6 +64,7 @@ public class CareerController {
     @PutMapping("/{id}")
     @Operation(summary = "Update career by id")
     @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Career updated successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid career data"),
             @ApiResponse(responseCode = "404", description = "Career not found"),
             @ApiResponse(responseCode = "409", description = "Career code already exists")

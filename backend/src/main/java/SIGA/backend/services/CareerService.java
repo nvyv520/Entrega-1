@@ -32,6 +32,13 @@ public class CareerService {
         List<CareerEntity> careers = careerRepository.findAll();
         return careers.stream().map(CareerResponseDTO::new).toList();
     }
+    
+
+    // find career entity by id
+    private CareerEntity findCareerById(Long id) {
+        return careerRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Carrera no encontrada por su ID: " + id));
+    }
 
 
     // find a career by id
@@ -120,9 +127,4 @@ public class CareerService {
         careerRepository.delete(career);
     }
 
-    // find career entity by id
-    private CareerEntity findCareerById(Long id) {
-        return careerRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Carrera no encontrada por su ID: " + id));
-    }
 }

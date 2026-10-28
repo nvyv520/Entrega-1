@@ -119,4 +119,19 @@ public class EnrollmentController {
         EnrollmentResponseDTO cancelledEnrollment = enrollmentService.cancelEnrollment(id);
         return ResponseEntity.ok(cancelledEnrollment);
     }
+
+
+    // confirm student subject selection
+    @PatchMapping("/student/{studentId}/academic-period/{periodId}/confirm")
+    @Operation(summary = "Confirm student subject selection")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Selection confirmed"),
+            @ApiResponse(responseCode = "404", description = "Student or period not found"),
+            @ApiResponse(responseCode = "409", description = "Selection cannot be confirmed")
+    })
+    public ResponseEntity<Void> confirmEnrollmentSelection(@PathVariable Long studentId, @PathVariable Long periodId) {
+        enrollmentService.confirmEnrollmentSelection(studentId, periodId);
+        return ResponseEntity.noContent().build();
+    }
+
 }

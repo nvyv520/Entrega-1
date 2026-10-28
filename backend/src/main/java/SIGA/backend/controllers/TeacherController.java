@@ -59,7 +59,7 @@ public class TeacherController {
     @Operation (summary = "Get teacher by rut")
     @ApiResponses ({
         @ApiResponse (responseCode = "200", description = "Teacher found"),
-        @ApiResponse (responseCode = "400", description = "Teacher not found")
+        @ApiResponse (responseCode = "404", description = "Teacher not found")
     })
     public ResponseEntity<TeacherResponseDTO> getTeacherByRut(@PathVariable String rut) {
         TeacherResponseDTO teacher = teacherService.getTeacherByRut(rut);
@@ -76,22 +76,22 @@ public class TeacherController {
         return ResponseEntity.ok(teachers);
     }
 
-
+    
     // get teachers by first name
-    @GetMapping ("/first-name")
-    @Operation (summary = "Get teachers by first name")
-    @ApiResponse (responseCode = "200", description = "Teachers retrieved successfully")
-    public ResponseEntity<List<TeacherResponseDTO>> getTeachersByFirstName(@PathVariable String firstName) {
+    @GetMapping("/first-name")
+    @Operation(summary = "Get teachers by first name")
+    @ApiResponse(responseCode = "200", description = "Teachers retrieved successfully")
+    public ResponseEntity<List<TeacherResponseDTO>> getTeachersByFirstName(@RequestParam String firstName) {
         List<TeacherResponseDTO> teachers = teacherService.getTeachersByFirstName(firstName);
         return ResponseEntity.ok(teachers);
     }
 
 
     // get teachers by last name
-    @GetMapping ("/last-name")
-    @Operation (summary = "Get teachers by last name")
-    @ApiResponse (responseCode = "200", description = "Teachers retrieved successfully")
-    public ResponseEntity<List<TeacherResponseDTO>> getTeachersByLastName(@PathVariable String lastName) {
+    @GetMapping("/last-name")
+    @Operation(summary = "Get teachers by last name")
+    @ApiResponse(responseCode = "200", description = "Teachers retrieved successfully")
+    public ResponseEntity<List<TeacherResponseDTO>> getTeachersByLastName(@RequestParam String lastName) {
         List<TeacherResponseDTO> teachers = teacherService.getTeachersByLastName(lastName);
         return ResponseEntity.ok(teachers);
     }
@@ -102,7 +102,7 @@ public class TeacherController {
     @Operation (summary = "create a new teacher")
     @ApiResponses ({
         @ApiResponse (responseCode = "201", description = "Teacher created successfully"),
-        @ApiResponse (responseCode = "404", description = "Invalid teacher data"),
+        @ApiResponse (responseCode = "400", description = "Invalid teacher data"),
         @ApiResponse (responseCode = "409", description = "Teacher already exist")
     })
     public ResponseEntity<TeacherResponseDTO> createTeacher(@Valid @RequestBody TeacherRequestDTO teacher) {

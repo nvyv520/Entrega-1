@@ -27,6 +27,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
+
 @Service
 @RequiredArgsConstructor
 
@@ -37,6 +40,7 @@ public class SectionService {
     private final TeacherRepository teacherRepository;
     private final AcademicPeriodRepository academicPeriodRepository;
     private final EnrollmentRepository enrollmentRepository;
+    private final EntityManager entityManager;
 
 
     // get all sections
@@ -119,8 +123,9 @@ public class SectionService {
 
         // si falta alguno de los datos
         if (section == null || section.getSubjectId() == null ||
-            section.getAcademicPeriodId() == null || section.getTeacherId() == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La asigantura, periodo acadmeico y docente son obligatorios");
+            section.getAcademicPeriodId() == null || 
+            section.getTeacherId() == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La asignatura, periodo academico y docente son obligatorios");
         }
 
         // si la capacidad no es valida
@@ -129,12 +134,17 @@ public class SectionService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La capacidad debe estar entre 1 y 60");
         }
 
-        // revisar que cuenta con al menos un bloque horario 
-        if(section.getBlocks() == null || section.getBlocks().isEmpty()) {
+        // revisar que cuenta con al menos un bloque horario
+        if (section.getBlocks() == null || section.getBlocks().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Debe tener al menos un bloque horario");
         }
 
-        // revisar que el/los bloques son validos
+        // revisar que no existan bloques duplicados
+        if (new HashSet<>(section.getBlocks()).size() != section.getBlocks().size()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No se permiten bloques horarios duplicados");
+        }
+
+        // revisar que los bloques sean validos
         for (String block : section.getBlocks()) {
             if (block == null || !block.matches("^[LMWJV][1-6]$")) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El bloque horario no es valido");
@@ -183,8 +193,7 @@ public class SectionService {
             }
 
             // si corresponden al mismo periodo academico 
-            if (!current.getAcademicPeriod().getId().equals(academicPeriodId) ||
-                current.getStatus() != Status.ACTIVA) {
+            if (!current.getAcademicPeriod().getId().equals(academicPeriodId)) {
                     continue;
             }
 
@@ -203,6 +212,22 @@ public class SectionService {
     }
 
 
+    // lock academic period before changing sections
+    private AcademicPeriodEntity lockOpenPeriod(Long periodId) {
+
+        AcademicPeriodEntity period = entityManager.find(AcademicPeriodEntity.class, periodId, LockModeType.PESSIMISTIC_WRITE);
+
+        if (period == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Periodo academico no encontrado");
+        }
+
+        validateAcademicPeriod(period);
+
+        return period;
+    }
+
+
+
     // create section 
     @Transactional 
     public SectionResponseDTO createSection(SectionRequestDTO section) {
@@ -210,9 +235,10 @@ public class SectionService {
         // validar la informacion 
         validateSectionData(section);
 
+        Set<String> blocks = new HashSet<>(section.getBlocks());
+
         SubjectEntity subject = findSubjectById(section.getSubjectId());
-        AcademicPeriodEntity period = findAcademicPeriodById(section.getAcademicPeriodId());
-        TeacherEntity teacher = findTeacherById(section.getTeacherId());
+        AcademicPeriodEntity period = lockOpenPeriod(section.getAcademicPeriodId());        TeacherEntity teacher = findTeacherById(section.getTeacherId());
 
         // validar periodo y profesor 
         validateAcademicPeriod(period);
@@ -224,8 +250,8 @@ public class SectionService {
         }
 
         // validar las horas TEL y topes del profesor 
-        validateHours(subject, section.getBlocks());
-        validateTeacherSchedule(null, teacher.getId(), period.getId(),section.getBlocks());
+        validateHours(subject, blocks);
+        validateTeacherSchedule(null, teacher.getId(), period.getId(), blocks);
 
         // create section 
         SectionEntity newSection = new SectionEntity();
@@ -235,7 +261,7 @@ public class SectionService {
         newSection.setCapacity(section.getCapacity());
         newSection.setEnrolledStudents(0);
         newSection.setStatus(Status.ACTIVA);
-        newSection.setBlocks(new HashSet<>(section.getBlocks()));
+        newSection.setBlocks(blocks);
 
         SectionEntity saved = sectionRepository.save(newSection);
         return new SectionResponseDTO(saved);
@@ -250,6 +276,12 @@ public class SectionService {
 
         // validar la informacion 
         validateSectionData(section);
+
+        // lock period during update
+        lockOpenPeriod(current.getAcademicPeriod().getId());
+        entityManager.refresh(current);
+
+        Set<String> blocks = new HashSet<>(section.getBlocks());
 
         // no permitir cambios en periodos cerrados
         validateAcademicPeriod(current.getAcademicPeriod());
@@ -269,12 +301,12 @@ public class SectionService {
         validateTeacher(teacher);
 
         // validar las horas TEL correspondientes y topes horarios del docente
-        validateHours(current.getSubject(), section.getBlocks());
-        validateTeacherSchedule(id, teacher.getId(), current.getAcademicPeriod().getId(), section.getBlocks());
+        validateHours(current.getSubject(), blocks);
+        validateTeacherSchedule(id, teacher.getId(), current.getAcademicPeriod().getId(), blocks);
 
         current.setTeacher(teacher);
         current.setCapacity(section.getCapacity());
-        current.setBlocks(new HashSet<>(section.getBlocks()));
+        current.setBlocks(blocks);
 
         SectionEntity saved = sectionRepository.save(current);
         return new SectionResponseDTO(saved);
@@ -286,6 +318,8 @@ public class SectionService {
     public void deleteSection(Long id) {
 
         SectionEntity section = findSectionById(id);
+        lockOpenPeriod(section.getAcademicPeriod().getId());
+        entityManager.refresh(section);
 
         // no eliminar si el periodo ya cerro
         validateAcademicPeriod(section.getAcademicPeriod());

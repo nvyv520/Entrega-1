@@ -22,6 +22,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
+
 @Service 
 @RequiredArgsConstructor 
 public class PeriodMatriculationService {
@@ -29,6 +32,7 @@ public class PeriodMatriculationService {
     private final PeriodMatriculationRepository matriculationRepository;
     private final StudentRepository studentRepository;
     private final AcademicPeriodRepository academicPeriodRepository;
+    private final EntityManager entityManager;
 
 
     // get all matriculation
@@ -93,8 +97,19 @@ public class PeriodMatriculationService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "EL estudiante y periodo academico son obligatorios");
         }
 
-        StudentEntity student = findStudentById(matriculation.getStudentId());
-        AcademicPeriodEntity period = findAcademicPeriodById(matriculation.getAcademicPeriodId());
+        // lock academic period
+        AcademicPeriodEntity period = entityManager.find(AcademicPeriodEntity.class, matriculation.getAcademicPeriodId(), LockModeType.PESSIMISTIC_WRITE);
+
+        if (period == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Periodo academico no encontrado");
+        }
+
+        // lock student
+        StudentEntity student = entityManager.find(StudentEntity.class, matriculation.getStudentId(), LockModeType.PESSIMISTIC_WRITE);
+
+        if (student == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Estudiante no encontrado");
+        }
 
         // validar estado del estudiante (regular)
         if (student.getStatus() != StudentStatus.REGULAR) {
@@ -114,6 +129,7 @@ public class PeriodMatriculationService {
         PeriodMatriculationEntity newMatriculation = new PeriodMatriculationEntity();
         newMatriculation.setStudent(student);
         newMatriculation.setAcademicPeriod(period);
+        newMatriculation.setEnrollmentConfirmed(false);
 
         PeriodMatriculationEntity saved = matriculationRepository.save(newMatriculation);
         return new PeriodMatriculationResponseDTO(saved);

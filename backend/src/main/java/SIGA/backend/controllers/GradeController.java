@@ -106,7 +106,7 @@ public class GradeController {
     })
     public ResponseEntity<GradeResponseDTO> createGrade(@Valid @RequestBody GradeRequestDTO grade) {
         GradeResponseDTO newGrade = gradeService.createGrade(grade);
-        URI location = URI.create("/api/grades/" + newGrade.getId())
+        URI location = URI.create("/api/grades/" + newGrade.getId());
         return ResponseEntity.created(location).body(newGrade);
     }
 

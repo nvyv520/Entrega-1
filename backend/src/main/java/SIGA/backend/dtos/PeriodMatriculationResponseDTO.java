@@ -15,11 +15,13 @@ public class PeriodMatriculationResponseDTO {
     private Long id;
     private Long studentId;
     private Long academicPeriodId;
+    private Boolean enrollmentConfirmed;
 
     public PeriodMatriculationResponseDTO(PeriodMatriculationEntity matriculation) {
 
         this.id = matriculation.getId();
         this.studentId = matriculation.getStudent().getId();
         this.academicPeriodId = matriculation.getAcademicPeriod().getId();
+        this.enrollmentConfirmed = matriculation.getEnrollmentConfirmed();
     }
 }

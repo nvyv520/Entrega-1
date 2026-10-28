@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Pattern;
 
 import lombok.Data;
 
-import java.util.Set;
+import java.util.List;
 
 @Data
 public class SectionRequestDTO {
@@ -28,6 +28,6 @@ public class SectionRequestDTO {
     private Integer capacity;
 
     @NotEmpty (message = "Debe ingresar al menos un bloque horario")
-    private Set<@Pattern(regexp = "^[LMWJV][1-6]$", message = "El bloque horario no es valido") String> blocks;
+    private List<@Pattern(regexp = "^[LMWJV][1-6]$", message = "El bloque horario no es valido") String> blocks;
     
 }

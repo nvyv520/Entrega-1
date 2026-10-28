@@ -18,6 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
+
 import java.util.List;
 
 @Service 
@@ -29,6 +32,7 @@ public class StudyPlanService {
     private final CareerRepository careerRepository;
     private final StudentRepository studentRepository;
     private final SubjectRepository subjectRepository;
+    private final EntityManager entityManager;
 
 
     // retrieve all study plans and map them to responseDTO
@@ -123,27 +127,30 @@ public class StudyPlanService {
 
 
     // update study plan status
-    @Transactional 
+    @Transactional
     public StudyPlanResponseDTO updateStudyPlanStatus(Long id, StudyPlanStatus status) {
 
         // validate status
-        if(status == null) {
+        if (status == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El estado es obligatorio");
         }
 
         StudyPlanEntity studyPlan = findStudyPlanById(id);
 
-        // desactivar el plan anterior
+        // deactivate previous study plan
         if (status == StudyPlanStatus.VIGENTE) {
             Long careerId = studyPlan.getCareer().getId();
 
+            // lock career while changing current study plan
+            entityManager.find(CareerEntity.class, careerId, LockModeType.PESSIMISTIC_WRITE);
+
             studyPlanRepository.findByCareerIdAndStatus(careerId, StudyPlanStatus.VIGENTE)
-            .ifPresent(current -> {
-                if (!current.getId().equals(id)) {
-                    current.setStatus(StudyPlanStatus.NO_VIGENTE);
-                    studyPlanRepository.save(current);
-                }
-            });
+                .ifPresent(current -> {
+                    if (!current.getId().equals(id)) {
+                        current.setStatus(StudyPlanStatus.NO_VIGENTE);
+                        studyPlanRepository.saveAndFlush(current);
+                    }
+                });
         }
 
         studyPlan.setStatus(status);
