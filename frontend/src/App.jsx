@@ -1,35 +1,50 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+
+import { Button, Container, Typography, Paper, Stack } from "@mui/material";
+import keycloak from "./auth/keycloak";
 
 function App() {
-  const [count, setCount] = useState(0)
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    const username = keycloak.tokenParsed?.preferred_username;
+
+    const roles = keycloak.realmAccess?.roles || [];
+
+    const appRoles = roles.filter(role =>
+        ["ADMIN", "TEACHER", "STUDENT"].includes(role)
+    );
+
+    const logout = () => {
+        keycloak.logout({
+            redirectUri: "http://localhost:5173/"
+        });
+    };
+
+    return (
+        <Container maxWidth="sm" sx={{ mt: 8 }}>
+            <Paper elevation={3} sx={{ p: 4 }}>
+                <Stack spacing={3}>
+                    <Typography variant="h4">
+                        SIGA IPT
+                    </Typography>
+
+                    <Typography>
+                        Bienvenido, {username}
+                    </Typography>
+
+                    <Typography>
+                        Rol: {appRoles.join(", ") || "Sin rol asignado"}
+                    </Typography>
+
+                    <Button
+                        variant="contained"
+                        color="error"
+                        onClick={logout}
+                    >
+                        Cerrar sesión
+                    </Button>
+                </Stack>
+            </Paper>
+        </Container>
+    );
 }
 
-export default App
+export default App;

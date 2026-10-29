@@ -340,4 +340,30 @@ public class StudentService {
         StudentEntity saved = studentRepository.save(student);
         return new StudentResponseDTO(saved);
     }
+
+    // get authenticated student
+    @Transactional(readOnly = true)
+    public StudentResponseDTO getCurrentStudent(String keycloakSubject) {
+
+        StudentEntity student = studentRepository
+                .findByKeycloakSubject(keycloakSubject)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "No existe un estudiante asociado a esta cuenta"));
+
+        return new StudentResponseDTO(student);
+    }
+
+    // get authenticated student academic history
+    @Transactional(readOnly = true)
+    public List<StudentAcademicHistoryDTO> getCurrentStudentAcademicHistory(String keycloakSubject) {
+
+        StudentEntity student = studentRepository
+                .findByKeycloakSubject(keycloakSubject)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "No existe un estudiante asociado a esta cuenta"));
+
+        return getStudentAcademicHistory(student.getId());
+    }
 }

@@ -26,6 +26,13 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.util.List;
 
+import SIGA.backend.entities.TeacherEntity;
+import SIGA.backend.repositories.TeacherRepository;
+
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+
 @Service
 @RequiredArgsConstructor
 
@@ -34,6 +41,7 @@ public class GradeService {
     private final GradeRepository gradeRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final EntityManager entityManager;
+    private final TeacherRepository teacherRepository;
 
     // get all grades
     @Transactional (readOnly = true)
@@ -135,6 +143,51 @@ public class GradeService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El periodo academico debe estar abierto");
         }
     }
+
+
+    // validate authenticated user permissions
+    private void validateGradeAccess(EnrollmentEntity enrollment) {
+
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        if (!(authentication instanceof JwtAuthenticationToken jwtAuth)) {
+            throw new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED,
+                    "Usuario no autenticado");
+        }
+
+        // administrators can manage grades
+        if (authentication.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"))) {
+            return;
+        }
+
+        // only teachers can register or update grades
+        if (authentication.getAuthorities().stream()
+                .noneMatch(authority -> authority.getAuthority().equals("ROLE_TEACHER"))) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "No tiene permisos para modificar calificaciones");
+        }
+
+        String keycloakSubject = jwtAuth.getToken().getSubject();
+
+        TeacherEntity teacher = teacherRepository
+                .findByKeycloakSubject(keycloakSubject)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.FORBIDDEN,
+                        "No existe un docente asociado a esta cuenta"));
+
+        Long assignedTeacherId = enrollment.getSection().getTeacher().getId();
+
+        if (!teacher.getId().equals(assignedTeacherId)) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "El docente no esta asignado a esta seccion");
+        }
+    }
+
 
 
     // calculate grade result

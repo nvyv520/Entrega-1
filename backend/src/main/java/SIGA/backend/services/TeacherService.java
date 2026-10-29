@@ -1,25 +1,21 @@
 package SIGA.backend.services;
 
-import SIGA.backend.entities.TeacherEntity;
-import SIGA.backend.repositories.TeacherRepository;
-import SIGA.backend.dtos.TeacherRequestDTO;
-import SIGA.backend.dtos.TeacherResponseDTO;
-
-import SIGA.backend.entities.Status;
-
-import SIGA.backend.repositories.SectionRepository;
-import SIGA.backend.repositories.StudentRepository;
-
-import SIGA.backend.entities.AcademicPeriodStatus;
+import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import SIGA.backend.dtos.TeacherRequestDTO;
+import SIGA.backend.dtos.TeacherResponseDTO;
+import SIGA.backend.entities.AcademicPeriodStatus;
+import SIGA.backend.entities.Status;
+import SIGA.backend.entities.TeacherEntity;
+import SIGA.backend.repositories.SectionRepository;
+import SIGA.backend.repositories.StudentRepository;
+import SIGA.backend.repositories.TeacherRepository;
 import lombok.RequiredArgsConstructor;
-
-import java.util.List;
 
 
 @Service 
@@ -232,6 +228,19 @@ public class TeacherService {
 
         TeacherEntity saved = teacherRepository.save(teacher);
         return new TeacherResponseDTO(saved);
+    }
+
+    // get authenticated teacher
+    @Transactional(readOnly = true)
+    public TeacherResponseDTO getCurrentTeacher(String keycloakSubject) {
+
+        TeacherEntity teacher = teacherRepository
+                .findByKeycloakSubject(keycloakSubject)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "No existe un docente asociado a esta cuenta"));
+
+        return new TeacherResponseDTO(teacher);
     }
 
 

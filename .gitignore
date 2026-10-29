@@ -1,0 +1,14 @@
+# Node
+node_modules/
+dist/
+
+# Environment variables
+.env
+**/.env
+
+# Java
+target/
+
+# IDE
+.vscode/
+.idea/

@@ -19,6 +19,8 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.util.List;
 import java.net.URI;
@@ -31,6 +33,39 @@ import java.net.URI;
 public class StudentController {
 
     private final StudentService studentService;
+
+
+    // get authenticated student
+    @GetMapping("/me")
+    @Operation(summary = "Get authenticated student")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Student found"),
+        @ApiResponse(responseCode = "404", description = "Student not linked to Keycloak")
+    })
+    public ResponseEntity<StudentResponseDTO> getCurrentStudent(
+            @AuthenticationPrincipal Jwt jwt) {
+
+        StudentResponseDTO student = studentService.getCurrentStudent(jwt.getSubject());
+        return ResponseEntity.ok(student);
+    }
+
+    
+    // get authenticated student academic history
+    @GetMapping("/me/academic-history")
+    @Operation(summary = "Get authenticated student academic history")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Academic history retrieved successfully"),
+        @ApiResponse(responseCode = "404", description = "Student not linked to Keycloak")
+    })
+    public ResponseEntity<List<StudentAcademicHistoryDTO>> getCurrentStudentAcademicHistory(
+            @AuthenticationPrincipal Jwt jwt) {
+
+        List<StudentAcademicHistoryDTO> history =
+                studentService.getCurrentStudentAcademicHistory(jwt.getSubject());
+
+        return ResponseEntity.ok(history);
+    }
+
 
     // get all students
     @GetMapping 
