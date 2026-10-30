@@ -1,8 +1,11 @@
 package SIGA.backend.controllers;
 
+import SIGA.backend.entities.AcademicPeriodStatus;
+
+
 import SIGA.backend.dtos.AcademicPeriodRequestDTO;
 import SIGA.backend.dtos.AcademicPeriodResponseDTO;
-import SIGA.backend.entities.AcademicPeriodStatus;
+
 import SIGA.backend.services.AcademicPeriodService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -96,7 +99,6 @@ public class AcademicPeriodController {
     public ResponseEntity<AcademicPeriodResponseDTO> createAcademicPeriod(@Valid @RequestBody AcademicPeriodRequestDTO period) {
         AcademicPeriodResponseDTO newPeriod = academicPeriodService.createAcademicPeriod(period);
         URI location = URI.create("/api/academic-periods/" + newPeriod.getId());
-
         return ResponseEntity.created(location).body(newPeriod);
     }
 

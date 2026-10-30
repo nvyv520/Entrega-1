@@ -10,7 +10,6 @@ import SIGA.backend.entities.AcademicPeriodStatus;
 import SIGA.backend.entities.Status;
 import SIGA.backend.entities.GradeResult;
 import SIGA.backend.entities.AcademicPeriodEntity;
-import SIGA.backend.repositories.AcademicPeriodRepository;
 import SIGA.backend.entities.PeriodMatriculationEntity;
 
 import SIGA.backend.repositories.EnrollmentRepository;
@@ -19,6 +18,7 @@ import SIGA.backend.repositories.SectionRepository;
 import SIGA.backend.repositories.PeriodMatriculationRepository;
 import SIGA.backend.repositories.GradeRepository;
 import SIGA.backend.repositories.SubjectRepository;
+import SIGA.backend.repositories.AcademicPeriodRepository;
 
 import SIGA.backend.dtos.EnrollmentRequestDTO;
 import SIGA.backend.dtos.EnrollmentResponseDTO;
@@ -49,7 +49,7 @@ public class EnrollmentService {
     private final GradeRepository gradeRepository;
     private final EntityManager entityManager;
     private final SubjectRepository subjectRepository;
-    private final AcademicPeriodRepository academicPeriodRepository;
+
 
     // get all enrollments 
     @Transactional (readOnly = true)
@@ -64,6 +64,7 @@ public class EnrollmentService {
         return enrollmentRepository.findById(id).orElseThrow(() ->
                 new ResponseStatusException(HttpStatus.NOT_FOUND, "Inscripcion no encontrada"));
     }
+
 
     // get enrollment by id
     @Transactional(readOnly = true)
@@ -105,13 +106,6 @@ public class EnrollmentService {
     }
 
 
-    // find student by id
-    private StudentEntity findStudentById(Long id) {
-        return studentRepository.findById(id).orElseThrow(() ->
-                new ResponseStatusException(HttpStatus.NOT_FOUND, "Estudiante no encontrado"));
-    }
-
-
     // find and lock an open academic period
     private AcademicPeriodEntity lockOpenPeriod(Long periodId) {
 
@@ -144,7 +138,6 @@ public class EnrollmentService {
 
     // find student matriculation in period
     private PeriodMatriculationEntity findMatriculation(Long studentId, Long periodId) {
-
         return matriculationRepository.findByStudentIdAndAcademicPeriodId(studentId, periodId).orElseThrow(() -> 
                 new ResponseStatusException(HttpStatus.CONFLICT, "El estudiante no esta matriculado en el periodo"));
     }
@@ -173,13 +166,17 @@ public class EnrollmentService {
     }
     
 
-    //validar condiciones de inscripcion 
-    private void validateEnrollment(StudentEntity student, SectionEntity section) {
-        
-        // el estudiante debe estar habilitado
+    private void validateStudentStatus(StudentEntity student) {
         if (student.getStatus() != StudentStatus.REGULAR) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El estudiante no se encuentra habilitado");
         }
+    }
+
+
+    //validar condiciones de inscripcion
+    private void validateEnrollment(StudentEntity student, SectionEntity section) {
+
+        validateStudentStatus(student);
 
         // el periodo debe estar abierto 
         if (section.getAcademicPeriod().getStatus() != AcademicPeriodStatus.ABIERTO) {
@@ -218,7 +215,6 @@ public class EnrollmentService {
 
     // revisar si el estudiante aprobo una asignatura
     private boolean hasApprovedSubject(Long studentId, Long subjectId) {
-
         return gradeRepository.existsByEnrollment_Student_IdAndEnrollment_Section_Subject_IdAndResult(
                         studentId, subjectId, GradeResult.APROBADO);
     }
@@ -266,9 +262,13 @@ public class EnrollmentService {
 
     // validar la capacidad disponible 
     private void validateCapacity(SectionEntity section) {
+        validateCapacity(section, false);
+    }
+
+    private void validateCapacity(SectionEntity section, boolean alreadyEnrolled) {
         Long enrolled = enrollmentRepository.countBySectionIdAndStatus(section.getId(), EnrollmentStatus.ACTIVO);
 
-        if (enrolled >= section.getCapacity()) {
+        if (enrolled + (alreadyEnrolled ? 0 : 1) > section.getCapacity()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "La seccion no tiene cupos disponibles");
         }
     }
@@ -276,13 +276,16 @@ public class EnrollmentService {
 
     // validar maximo de asignaturas por periodo
     private void validateMaximumSubjects(StudentEntity student, SectionEntity section) {
+        validateMaximumSubjects(student, section, false);
+    }
 
-        List<EnrollmentEntity> enrollments = enrollmentRepository.findByStudentIdAndAcademicPeriodId(
-                        student.getId(), section.getAcademicPeriod().getId());
+    private void validateMaximumSubjects(StudentEntity student, SectionEntity section, boolean alreadyEnrolled) {
+
+        List<EnrollmentEntity> enrollments = enrollmentRepository.findByStudentIdAndAcademicPeriodId(student.getId(), section.getAcademicPeriod().getId());
 
         long total = enrollments.stream().filter(enrollment -> enrollment.getStatus() == EnrollmentStatus.ACTIVO).count();
 
-        if (total >= 6) {
+        if (total + (alreadyEnrolled ? 0 : 1) > 6) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El estudiante no puede inscribir mas de 6 asignaturas por periodo");
         }
     }
@@ -293,19 +296,17 @@ public class EnrollmentService {
 
         List<EnrollmentEntity> enrollments = enrollmentRepository.findByStudentIdAndAcademicPeriodId(student.getId(), periodId);
 
-        long total = enrollments.stream().filter(enrollment -> enrollment.getStatus() == EnrollmentStatus.ACTIVO).count();
+        Long total = enrollments.stream().filter(enrollment -> enrollment.getStatus() == EnrollmentStatus.ACTIVO).count();
 
         List<SubjectEntity> subjects = subjectRepository.findByStudyPlanId(student.getStudyPlan().getId());
 
-        long pending = subjects.stream().filter(subject -> !hasApprovedSubject(student.getId(), subject.getId())).count();
+        Long pending = subjects.stream().filter(subject -> !hasApprovedSubject(student.getId(), subject.getId())).count();
 
         if (pending == 0) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "El estudiante no tiene asignaturas pendientes para inscribir");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "El estudiante no tiene asignaturas pendientes para inscribir");
         }
 
-        long minimum = Math.min(3, pending);
+        Long minimum = Math.min(3, pending);
 
         if (total < minimum) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El estudiante no cumple con el minimo de asignaturas del periodo");
@@ -343,7 +344,7 @@ public class EnrollmentService {
 
             // revisar si ya esta inscrita
             boolean enrolled = enrollments.stream().anyMatch(enrollment -> enrollment.getStatus() == EnrollmentStatus.ACTIVO &&
-                            enrollment.getSection().getSubject().getId().equals(subject.getId()));
+                                enrollment.getSection().getSubject().getId().equals(subject.getId()));
 
             if (enrolled) {
                 continue;
@@ -372,7 +373,7 @@ public class EnrollmentService {
                     continue;
                 }
 
-                long enrolledStudents = enrollmentRepository.countBySectionIdAndStatus(current.getId(), EnrollmentStatus.ACTIVO);
+                Long enrolledStudents = enrollmentRepository.countBySectionIdAndStatus(current.getId(), EnrollmentStatus.ACTIVO);
 
                 // ignore full sections
                 if (enrolledStudents >= current.getCapacity()) {
@@ -395,7 +396,6 @@ public class EnrollmentService {
             }
         }
     }
-
 
 
     // create enrollment
@@ -435,8 +435,7 @@ public class EnrollmentService {
 
             if (current.getStatus() == EnrollmentStatus.ACTIVO &&
                 current.getSection().getSubject().getId().equals(section.getSubject().getId())) {
-
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "El estudiante ya tiene inscrita esta asignatura en el periodo");
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "El estudiante ya tiene inscrita esta asignatura en el periodo");
             }
         }
 
@@ -494,6 +493,7 @@ public class EnrollmentService {
 
     }
 
+
     // cancel enrollment
     @Transactional 
     public EnrollmentResponseDTO cancelEnrollment(Long id) {
@@ -548,10 +548,19 @@ public class EnrollmentService {
     // confirm subject selection
     @Transactional
     public void confirmEnrollmentSelection(Long studentId, Long periodId) {
+        confirmEnrollmentSelection(studentId, periodId, true);
+    }
+    
+    
+    // confirm subject selection
+    private void confirmEnrollmentSelection(Long studentId, Long periodId, boolean enforceMinimum) {
 
         // lock academic period and student
         lockOpenPeriod(periodId);
         StudentEntity student = lockStudent(studentId);
+
+        // validate student status
+        validateStudentStatus(student);
 
         // find matriculation
         PeriodMatriculationEntity matriculation = findMatriculation(studentId, periodId);
@@ -561,12 +570,96 @@ public class EnrollmentService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "La seleccion ya esta confirmada");
         }
 
-        // validate minimum number of subjects
-        validateMinimumSubjects(student, periodId);
+        // get student enrollments
+        List<EnrollmentEntity> enrollments = enrollmentRepository.findByStudentIdAndAcademicPeriodId(studentId, periodId);
+
+        List<EnrollmentEntity> activeEnrollments = enrollments.stream().filter(enrollment -> enrollment.getStatus() == EnrollmentStatus.ACTIVO).toList();
+
+        // prevent confirming an empty selection
+        if (activeEnrollments.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "El estudiante debe tener asignaturas inscritas para confirmar");
+        }
+
+        // validate current enrollments
+        for (EnrollmentEntity enrollment : activeEnrollments) {
+
+            SectionEntity section = findLockedSectionById(enrollment.getSection().getId());
+
+            validateEnrollment(student, section);
+            validateSubjectNotApproved(student, section.getSubject());
+            validatePrerequisites(student, section.getSubject());
+            validateStudentSchedule(student, section);
+            validateCapacity(section, true);
+            validateMaximumSubjects(student, section, true);
+            validateSemesterPriority(student, section);
+        }
+
+        // validate minimum subjects when required
+        if (enforceMinimum) {
+            validateMinimumSubjects(student, periodId);
+        }
 
         // confirm selection
         matriculation.setEnrollmentConfirmed(true);
         matriculationRepository.save(matriculation);
     }
+
+
+    // the personal flow deliberately defers the minimum-subject requirement
+    @Transactional
+    public void confirmCurrentStudentEnrollmentSelection(String keycloakSubject, Long periodId) {
+        StudentEntity student = studentRepository.findByKeycloakSubject(keycloakSubject).orElseThrow(() -> 
+                                new ResponseStatusException(HttpStatus.NOT_FOUND, "No existe un estudiante asociado a esta cuenta"));
+
+        confirmEnrollmentSelection(student.getId(), periodId, false);
+    }
+
+
+    // get enrollments of authenticated student
+    @Transactional(readOnly = true)
+    public List<EnrollmentResponseDTO> getCurrentStudentEnrollments(String keycloakSubject) {
+
+        StudentEntity student = studentRepository.findByKeycloakSubject(keycloakSubject).orElseThrow(() -> 
+                                new ResponseStatusException(HttpStatus.NOT_FOUND, "No existe un estudiante asociado a esta cuenta"));
+
+        return getEnrollmentsByStudent(student.getId());
+    }
+
+
+    // create enrollment for authenticated student
+    @Transactional
+    public EnrollmentResponseDTO createCurrentStudentEnrollment(String keycloakSubject, Long sectionId) {
+
+        StudentEntity student = studentRepository.findByKeycloakSubject(keycloakSubject).orElseThrow(() -> 
+                                new ResponseStatusException(HttpStatus.NOT_FOUND, "No existe un estudiante asociado a esta cuenta"));
+
+        if (sectionId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La seccion es obligatoria");
+        }
+
+        EnrollmentRequestDTO request = new EnrollmentRequestDTO();
+        request.setStudentId(student.getId());
+        request.setSectionId(sectionId);
+
+        return createEnrollment(request);
+    }
+
+
+    // cancel enrollment for authenticated student
+    @Transactional
+    public EnrollmentResponseDTO cancelCurrentStudentEnrollment(String keycloakSubject, Long enrollmentId) {
+
+        StudentEntity student = studentRepository.findByKeycloakSubject(keycloakSubject).orElseThrow(() -> 
+                                new ResponseStatusException(HttpStatus.NOT_FOUND, "No existe un estudiante asociado a esta cuenta"));
+
+        EnrollmentEntity enrollment = findEnrollmentById(enrollmentId);
+
+        if (!enrollment.getStudent().getId().equals(student.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tiene permisos para cancelar esta inscripcion");
+        }
+
+        return cancelEnrollment(enrollmentId);
+    }
+
 
 }

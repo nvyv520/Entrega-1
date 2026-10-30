@@ -6,7 +6,15 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.jwt.JwtClaimNames;
+import org.springframework.security.oauth2.jwt.JwtClaimValidator;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -90,29 +98,83 @@ public class SecurityConfig {
                         .requestMatchers("/api/academic-periods", "/api/academic-periods/**")
                                 .hasRole("ADMIN")
 
-                        // Sections
-                        .requestMatchers(HttpMethod.GET, "/api/sections", "/api/sections/**")
+                        // Sections - authenticated teacher
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/sections/me",
+                                "/api/sections/me/*/students"
+                        )
+                                .hasRole("TEACHER")
+
+                        // Sections - academic catalog
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/sections",
+                                "/api/sections/**")
                                 .hasAnyRole("ADMIN", "TEACHER", "STUDENT")
 
+                        // Sections - administration
                         .requestMatchers("/api/sections", "/api/sections/**")
                                 .hasRole("ADMIN")
+
 
                         // Period matriculations
                         .requestMatchers("/api/period-matriculations", "/api/period-matriculations/**")
                                 .hasRole("ADMIN")
 
-                        // Enrollments - temporary protection
+                        // Enrollments - authenticated student
+                        .requestMatchers(HttpMethod.GET, "/api/enrollments/me")
+                                .hasRole("STUDENT")
+
+                        .requestMatchers(HttpMethod.POST, "/api/enrollments/me")
+                                .hasRole("STUDENT")
+
+                        .requestMatchers(HttpMethod.PATCH, "/api/enrollments/me/*/cancel")
+                                .hasRole("STUDENT")
+
+                        .requestMatchers(HttpMethod.PATCH, "/api/enrollments/me/academic-period/*/confirm")
+                                .hasRole("STUDENT")
+
+                        // Enrollments - administration
                         .requestMatchers("/api/enrollments", "/api/enrollments/**")
                                 .hasRole("ADMIN")
 
-                        // Grades - temporary protection
-                        .requestMatchers("/api/grades", "/api/grades/**")
+                        // Grades - authenticated student
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/grades/me"
+                        )
+                                .hasRole("STUDENT")
+
+                        // Grades - authenticated teacher section
+                        .requestMatchers(HttpMethod.GET, "/api/grades/me/sections/*")
+                                .hasRole("TEACHER")
+
+                        // Grades - create
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/grades"
+                        )
+                                .hasAnyRole("ADMIN", "TEACHER")
+
+                        // Grades - update
+                        .requestMatchers(
+                                HttpMethod.PUT,
+                                "/api/grades/*"
+                        )
+                                .hasAnyRole("ADMIN", "TEACHER")
+
+                        // Grades - administration
+                        .requestMatchers(
+                                "/api/grades",
+                                "/api/grades/**"
+                        )
                                 .hasRole("ADMIN")
+
 
                         // Deny other API endpoints
                         .requestMatchers("/api/**").denyAll()
 
-                        .anyRequest().authenticated()
+                        .anyRequest().denyAll()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt
@@ -122,6 +184,30 @@ public class SecurityConfig {
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
                 .build();
+    }
+
+    // Use internal JWK access while still validating the browser-facing issuer.
+    @Bean
+    public JwtDecoder jwtDecoder(
+            @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}") String issuer,
+            @Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}") String jwkSetUri,
+            @Value("${siga.security.jwt.audience}") String audience,
+            @Value("${siga.security.jwt.validate-audience}") boolean validateAudience) {
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+        var issuerValidator = JwtValidators.createDefaultWithIssuer(issuer);
+        if (audience == null || audience.isBlank()) {
+            throw new IllegalArgumentException("The SIGA API audience must not be empty");
+        }
+        if (validateAudience) {
+            var audienceValidator = new JwtClaimValidator<List<String>>(
+                    JwtClaimNames.AUD, audiences -> audiences != null && audiences.contains(audience));
+            decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(issuerValidator, audienceValidator));
+        } else {
+            decoder.setJwtValidator(issuerValidator);
+            LoggerFactory.getLogger(SecurityConfig.class).warn(
+                    "JWT audience validation is disabled pending Keycloak audience mapper setup");
+        }
+        return decoder;
     }
 
     @Bean

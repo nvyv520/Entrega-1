@@ -2,17 +2,18 @@ package SIGA.backend.services;
 
 import SIGA.backend.entities.StudyPlanEntity;
 import SIGA.backend.entities.StudyPlanStatus;
-import SIGA.backend.repositories.StudyPlanRepository;
-import SIGA.backend.dtos.StudyPlanRequestDTO;
-import SIGA.backend.dtos.StudyPlanResponseDTO;
-
 import SIGA.backend.entities.CareerEntity;
-import SIGA.backend.repositories.CareerRepository;
 
+import SIGA.backend.repositories.StudyPlanRepository;
+import SIGA.backend.repositories.CareerRepository;
 import SIGA.backend.repositories.StudentRepository;
 import SIGA.backend.repositories.SubjectRepository;
 
+import SIGA.backend.dtos.StudyPlanRequestDTO;
+import SIGA.backend.dtos.StudyPlanResponseDTO;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,8 +47,7 @@ public class StudyPlanService {
     // find study plan entity by id
     private StudyPlanEntity findStudyPlanById(Long id) {
         return studyPlanRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Plan de estudios no encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plan de estudios no encontrado"));
     }
 
 

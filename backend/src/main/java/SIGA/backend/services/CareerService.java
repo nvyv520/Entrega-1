@@ -1,13 +1,17 @@
 package SIGA.backend.services;
 
-import SIGA.backend.dtos.CareerRequestDTO;
-import SIGA.backend.dtos.CareerResponseDTO;
 import SIGA.backend.entities.CareerEntity;
 import SIGA.backend.entities.Status;
+
 import SIGA.backend.repositories.CareerRepository;
 import SIGA.backend.repositories.StudentRepository;
 import SIGA.backend.repositories.StudyPlanRepository;
+
+import SIGA.backend.dtos.CareerRequestDTO;
+import SIGA.backend.dtos.CareerResponseDTO;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -36,8 +40,8 @@ public class CareerService {
 
     // find career entity by id
     private CareerEntity findCareerById(Long id) {
-        return careerRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Carrera no encontrada por su ID: " + id));
+        return careerRepository.findById(id).orElseThrow(() -> 
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Carrera no encontrada por su ID: " + id));
     }
 
 
@@ -114,6 +118,7 @@ public class CareerService {
 
     }
 
+    
     // delete a career by id
     @Transactional
     public void deleteCareer(Long id) {

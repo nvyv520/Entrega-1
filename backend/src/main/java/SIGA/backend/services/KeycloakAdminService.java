@@ -1,4 +1,3 @@
-
 package SIGA.backend.services;
 
 import java.util.List;
@@ -58,9 +57,7 @@ public class KeycloakAdminService {
     public void validateUserRole(String keycloakSubject, String expectedRole) {
 
         if (keycloakSubject == null || keycloakSubject.isBlank()) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "El identificador de Keycloak es obligatorio");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El identificador de Keycloak es obligatorio");
         }
 
         // validate user ID format
@@ -69,15 +66,11 @@ public class KeycloakAdminService {
         try {
             subject = UUID.fromString(keycloakSubject.trim()).toString();
         } catch (IllegalArgumentException exception) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Identificador de Keycloak invalido");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Identificador de Keycloak invalido");
         }
 
         if (!List.of("STUDENT", "TEACHER").contains(expectedRole)) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "Rol de Keycloak invalido");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Rol de Keycloak invalido");
         }
 
         try {
@@ -104,27 +97,19 @@ public class KeycloakAdminService {
                     .anyMatch(role -> expectedRole.equals(role.get("name")));
 
             if (!hasRole) {
-                throw new ResponseStatusException(
-                        HttpStatus.CONFLICT,
-                        "El usuario no tiene el rol " + expectedRole);
+                throw new ResponseStatusException( HttpStatus.CONFLICT, "El usuario no tiene el rol " + expectedRole);
             }
 
         } catch (RestClientResponseException exception) {
 
             if (exception.getStatusCode().value() == 404) {
-                throw new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "Usuario de Keycloak no encontrado");
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario de Keycloak no encontrado");
             }
 
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_GATEWAY,
-                    "No se pudo consultar Keycloak");
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "No se pudo consultar Keycloak");
 
         } catch (org.springframework.web.client.RestClientException exception) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_GATEWAY,
-                    "No se pudo conectar con Keycloak");
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "No se pudo conectar con Keycloak");
         }
     }
 }

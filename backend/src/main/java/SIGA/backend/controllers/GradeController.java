@@ -1,8 +1,10 @@
 package SIGA.backend.controllers;
 
+import SIGA.backend.entities.GradeResult;
+
 import SIGA.backend.dtos.GradeRequestDTO;
 import SIGA.backend.dtos.GradeResponseDTO;
-import SIGA.backend.entities.GradeResult;
+
 import SIGA.backend.services.GradeService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +18,8 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.net.URI;
 import java.util.List;
@@ -27,7 +31,6 @@ import java.util.List;
 public class GradeController {
 
     private final GradeService gradeService;
-
 
     // get all grades
     @GetMapping
@@ -124,4 +127,34 @@ public class GradeController {
         GradeResponseDTO updatedGrade = gradeService.updateGrade(id, grade);
         return ResponseEntity.ok(updatedGrade);
     }
+
+
+    // get grades of authenticated student
+    @GetMapping("/me")
+    @Operation(summary = "Get authenticated student grades")
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Grades retrieved successfully"),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Student not linked to Keycloak")
+    })
+    public ResponseEntity<List<GradeResponseDTO>> getCurrentStudentGrades(@AuthenticationPrincipal Jwt jwt) {
+        List<GradeResponseDTO> grades =gradeService.getCurrentStudentGrades(jwt.getSubject());
+        return ResponseEntity.ok(grades);
+    }
+
+    @GetMapping("/me/sections/{sectionId}")
+    @Operation(summary = "Get grades in an authenticated teacher section")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Section grades retrieved successfully"),
+            @ApiResponse(responseCode = "403", description = "Teacher not assigned to section"),
+            @ApiResponse(responseCode = "404", description = "Teacher or section not found")
+    })
+    public ResponseEntity<List<GradeResponseDTO>> getCurrentTeacherSectionGrades(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long sectionId) {
+        return ResponseEntity.ok(gradeService.getCurrentTeacherSectionGrades(jwt.getSubject(), sectionId));
+    }
+
 }

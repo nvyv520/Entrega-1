@@ -1,8 +1,11 @@
 package SIGA.backend.controllers;
 
+import SIGA.backend.entities.Status;
+
 import SIGA.backend.dtos.SectionRequestDTO;
 import SIGA.backend.dtos.SectionResponseDTO;
-import SIGA.backend.entities.Status;
+import SIGA.backend.dtos.SectionStudentResponseDTO;
+
 import SIGA.backend.services.SectionService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -16,6 +19,8 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.net.URI;
 import java.util.List;
@@ -27,6 +32,38 @@ import java.util.List;
 public class SectionController {
 
     private final SectionService sectionService;
+
+
+    // get sections assigned to authenticated teacher
+    @GetMapping("/me")
+    @Operation(summary = "Get authenticated teacher sections")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Teacher sections retrieved successfully"),
+            @ApiResponse(responseCode = "404", description = "Teacher not linked to Keycloak")
+    })
+    public ResponseEntity<List<SectionResponseDTO>> getCurrentTeacherSections(
+            @AuthenticationPrincipal Jwt jwt) {
+
+        List<SectionResponseDTO> sections = sectionService.getCurrentTeacherSections(jwt.getSubject());
+        return ResponseEntity.ok(sections);
+    }
+
+
+    // get students enrolled in authenticated teacher section
+    @GetMapping("/me/{sectionId}/students")
+    @Operation(summary = "Get students enrolled in authenticated teacher section")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Students retrieved successfully"),
+            @ApiResponse(responseCode = "403", description = "Teacher not assigned to section"),
+            @ApiResponse(responseCode = "404", description = "Teacher or section not found")
+    })
+    public ResponseEntity<List<SectionStudentResponseDTO>> getCurrentTeacherSectionStudents(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long sectionId) {
+
+        List<SectionStudentResponseDTO> students = sectionService.getCurrentTeacherSectionStudents(jwt.getSubject(), sectionId);
+        return ResponseEntity.ok(students);
+    }
+
 
     // get all sections
     @GetMapping 
@@ -103,7 +140,6 @@ public class SectionController {
     public ResponseEntity<SectionResponseDTO> createSection(@Valid @RequestBody SectionRequestDTO section) {
         SectionResponseDTO newSection = sectionService.createSection(section);
         URI location = URI.create("/api/sections/" + newSection.getId());
-
         return ResponseEntity.created(location).body(newSection);
     }
 
@@ -117,7 +153,7 @@ public class SectionController {
             @ApiResponse(responseCode = "404", description = "Section or teacher not found"),
             @ApiResponse(responseCode = "409", description = "Section cannot be updated")
     })
-    public ResponseEntity<SectionResponseDTO> updateSection( @PathVariable Long id, @Valid @RequestBody SectionRequestDTO section) {
+    public ResponseEntity<SectionResponseDTO> updateSection(@PathVariable Long id, @Valid @RequestBody SectionRequestDTO section) {
         SectionResponseDTO updatedSection = sectionService.updateSection(id, section);
         return ResponseEntity.ok(updatedSection);
     }

@@ -2,6 +2,7 @@ package SIGA.backend.repositories;
 
 import SIGA.backend.entities.GradeEntity;
 import SIGA.backend.entities.GradeResult;
+import SIGA.backend.entities.EnrollmentStatus;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -23,6 +24,9 @@ public interface GradeRepository extends JpaRepository<GradeEntity, Long> {
 
     // find by academic period
     List<GradeEntity> findByEnrollment_AcademicPeriod_Id(Long academicPeriodId);
+
+    // find grades of active enrollments in a section
+    List<GradeEntity> findByEnrollment_Section_IdAndEnrollment_Status(Long sectionId, EnrollmentStatus status);
 
     // validations
     boolean existsByEnrollmentId(Long enrollmentId);

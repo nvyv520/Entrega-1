@@ -2,6 +2,7 @@ package SIGA.backend.repositories;
 
 import SIGA.backend.entities.TeacherEntity;
 import SIGA.backend.entities.Status;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -28,6 +29,6 @@ public interface TeacherRepository extends JpaRepository<TeacherEntity, Long> {
     List<TeacherEntity> findByLastNameContainsIgnoreCase(String lastName);
 
     // find by Keycloak subject
-Optional<TeacherEntity> findByKeycloakSubject(String keycloakSubject);
+    Optional<TeacherEntity> findByKeycloakSubject(String keycloakSubject);
 
 }

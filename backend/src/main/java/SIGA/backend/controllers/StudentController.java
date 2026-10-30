@@ -42,9 +42,7 @@ public class StudentController {
         @ApiResponse(responseCode = "200", description = "Student found"),
         @ApiResponse(responseCode = "404", description = "Student not linked to Keycloak")
     })
-    public ResponseEntity<StudentResponseDTO> getCurrentStudent(
-            @AuthenticationPrincipal Jwt jwt) {
-
+    public ResponseEntity<StudentResponseDTO> getCurrentStudent(@AuthenticationPrincipal Jwt jwt) {
         StudentResponseDTO student = studentService.getCurrentStudent(jwt.getSubject());
         return ResponseEntity.ok(student);
     }
@@ -57,12 +55,8 @@ public class StudentController {
         @ApiResponse(responseCode = "200", description = "Academic history retrieved successfully"),
         @ApiResponse(responseCode = "404", description = "Student not linked to Keycloak")
     })
-    public ResponseEntity<List<StudentAcademicHistoryDTO>> getCurrentStudentAcademicHistory(
-            @AuthenticationPrincipal Jwt jwt) {
-
-        List<StudentAcademicHistoryDTO> history =
-                studentService.getCurrentStudentAcademicHistory(jwt.getSubject());
-
+    public ResponseEntity<List<StudentAcademicHistoryDTO>> getCurrentStudentAcademicHistory(@AuthenticationPrincipal Jwt jwt) {
+        List<StudentAcademicHistoryDTO> history = studentService.getCurrentStudentAcademicHistory(jwt.getSubject());
         return ResponseEntity.ok(history);
     }
 
@@ -210,9 +204,7 @@ public class StudentController {
             @ApiResponse(responseCode = "502", description = "Keycloak communication error")
     })
     public ResponseEntity<StudentResponseDTO> linkStudentKeycloak(
-            @PathVariable Long id,
-            @RequestParam String keycloakSubject) {
-
+            @PathVariable Long id, @RequestParam String keycloakSubject) {
         StudentResponseDTO updated = studentService.linkStudentKeycloak(id, keycloakSubject);
         return ResponseEntity.ok(updated);
     }

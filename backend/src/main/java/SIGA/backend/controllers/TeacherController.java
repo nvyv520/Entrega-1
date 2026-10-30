@@ -8,11 +8,12 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 
+import SIGA.backend.entities.Status;
+
 import SIGA.backend.dtos.TeacherRequestDTO;
 import SIGA.backend.dtos.TeacherResponseDTO;
-import SIGA.backend.services.TeacherService;
 
-import SIGA.backend.entities.Status;
+import SIGA.backend.services.TeacherService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -40,13 +41,11 @@ public class TeacherController {
         @ApiResponse(responseCode = "200", description = "Teacher found"),
         @ApiResponse(responseCode = "404", description = "Teacher not linked to Keycloak")
     })
-    public ResponseEntity<TeacherResponseDTO> getCurrentTeacher(
-            @AuthenticationPrincipal Jwt jwt) {
-
+    public ResponseEntity<TeacherResponseDTO> getCurrentTeacher(@AuthenticationPrincipal Jwt jwt) {
         TeacherResponseDTO teacher = teacherService.getCurrentTeacher(jwt.getSubject());
-
         return ResponseEntity.ok(teacher);
     }
+
 
     // get all teachers
     @GetMapping 
@@ -184,9 +183,7 @@ public class TeacherController {
             @ApiResponse(responseCode = "502", description = "Keycloak communication error")
     })
     public ResponseEntity<TeacherResponseDTO> linkTeacherKeycloak(
-            @PathVariable Long id,
-            @RequestParam String keycloakSubject) {
-
+            @PathVariable Long id, @RequestParam String keycloakSubject) {
         TeacherResponseDTO updated = teacherService.linkTeacherKeycloak(id, keycloakSubject);
         return ResponseEntity.ok(updated);
     }

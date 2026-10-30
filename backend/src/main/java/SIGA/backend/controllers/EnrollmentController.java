@@ -1,8 +1,10 @@
 package SIGA.backend.controllers;
 
+import SIGA.backend.entities.EnrollmentStatus;
+
 import SIGA.backend.dtos.EnrollmentRequestDTO;
 import SIGA.backend.dtos.EnrollmentResponseDTO;
-import SIGA.backend.entities.EnrollmentStatus;
+
 import SIGA.backend.services.EnrollmentService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,9 +17,12 @@ import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.net.URI;
 import java.util.List;
+
 
 @RestController
 @RequestMapping("/api/enrollments")
@@ -27,6 +32,67 @@ public class EnrollmentController {
 
     private final EnrollmentService enrollmentService;
 
+
+    // get enrollments of authenticated student
+    @GetMapping("/me")
+    @Operation(summary = "Get authenticated student enrollments")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Enrollments retrieved successfully"),
+            @ApiResponse(responseCode = "404", description = "Student not linked to Keycloak")
+    })
+    public ResponseEntity<List<EnrollmentResponseDTO>> getCurrentStudentEnrollments( @AuthenticationPrincipal Jwt jwt) {
+        List<EnrollmentResponseDTO> enrollments = enrollmentService.getCurrentStudentEnrollments(jwt.getSubject());
+        return ResponseEntity.ok(enrollments);
+    }
+
+
+    // create enrollment for authenticated student
+    @PostMapping("/me")
+    @Operation(summary = "Create enrollment for authenticated student")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Enrollment created successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid section"),
+            @ApiResponse(responseCode = "404", description = "Student or section not found"),
+            @ApiResponse(responseCode = "409", description = "Enrollment is not allowed")
+    })
+    public ResponseEntity<EnrollmentResponseDTO> createCurrentStudentEnrollment(
+            @AuthenticationPrincipal Jwt jwt, @RequestParam Long sectionId) {
+
+        EnrollmentResponseDTO created = enrollmentService.createCurrentStudentEnrollment(jwt.getSubject(), sectionId);
+        URI location = URI.create("/api/enrollments/" + created.getId());
+        return ResponseEntity.created(location).body(created);
+    }
+
+
+    // cancel enrollment for authenticated student
+    @PatchMapping("/me/{enrollmentId}/cancel")
+    @Operation(summary = "Cancel enrollment for authenticated student")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Enrollment cancelled successfully"),
+            @ApiResponse(responseCode = "403", description = "Enrollment belongs to another student"),
+            @ApiResponse(responseCode = "404", description = "Enrollment not found"),
+            @ApiResponse(responseCode = "409", description = "Enrollment cannot be cancelled")
+    })
+    public ResponseEntity<EnrollmentResponseDTO> cancelCurrentStudentEnrollment(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long enrollmentId) {
+
+        EnrollmentResponseDTO cancelled = enrollmentService.cancelCurrentStudentEnrollment(jwt.getSubject(), enrollmentId);
+        return ResponseEntity.ok(cancelled);
+    }
+
+
+    @PatchMapping("/me/academic-period/{periodId}/confirm")
+    @Operation(summary = "Confirm authenticated student subject selection")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Selection confirmed"),
+            @ApiResponse(responseCode = "404", description = "Student or period not found"),
+            @ApiResponse(responseCode = "409", description = "Selection cannot be confirmed")
+    })
+    public ResponseEntity<Void> confirmCurrentStudentEnrollmentSelection(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long periodId) {
+        enrollmentService.confirmCurrentStudentEnrollmentSelection(jwt.getSubject(), periodId);
+        return ResponseEntity.noContent().build();
+    }
 
     // get all enrollments
     @GetMapping

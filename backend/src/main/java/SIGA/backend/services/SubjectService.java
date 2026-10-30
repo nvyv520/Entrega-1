@@ -1,18 +1,18 @@
 package SIGA.backend.services;
 
 import SIGA.backend.entities.SubjectEntity;
-import SIGA.backend.dtos.SubjectRequestDTO;
-import SIGA.backend.dtos.SubjectResponseDTO;
-import SIGA.backend.repositories.SubjectRepository;
-
 import SIGA.backend.entities.StudyPlanEntity;
+
+import SIGA.backend.repositories.SubjectRepository;
 import SIGA.backend.repositories.StudyPlanRepository;
-
 import SIGA.backend.repositories.SectionRepository;
-
 import SIGA.backend.repositories.EnrollmentRepository;
 
+import SIGA.backend.dtos.SubjectRequestDTO;
+import SIGA.backend.dtos.SubjectResponseDTO;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -98,6 +98,7 @@ public class SubjectService {
         Integer theory = subject.getTheoryHours();
         Integer exercise  = subject.getExerciseHours();
         Integer lab = subject.getLaboratoryHours();
+        
         if (theory == null || theory < 0 ||
             exercise == null || exercise < 0 ||
             lab == null || lab < 0) {

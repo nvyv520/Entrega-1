@@ -6,12 +6,13 @@ import SIGA.backend.entities.EnrollmentEntity;
 import SIGA.backend.entities.EnrollmentStatus;
 import SIGA.backend.entities.AcademicPeriodStatus;
 import SIGA.backend.entities.AcademicPeriodEntity;
-
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.LockModeType;
+import SIGA.backend.entities.TeacherEntity;
+import SIGA.backend.entities.StudentEntity;
 
 import SIGA.backend.repositories.GradeRepository;
 import SIGA.backend.repositories.EnrollmentRepository;
+import SIGA.backend.repositories.StudentRepository;
+import SIGA.backend.repositories.TeacherRepository;
 
 import SIGA.backend.dtos.GradeRequestDTO;
 import SIGA.backend.dtos.GradeResponseDTO;
@@ -22,16 +23,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-
-import java.math.BigDecimal;
-import java.util.List;
-
-import SIGA.backend.entities.TeacherEntity;
-import SIGA.backend.repositories.TeacherRepository;
-
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
+
+import java.math.BigDecimal;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -42,6 +42,8 @@ public class GradeService {
     private final EnrollmentRepository enrollmentRepository;
     private final EntityManager entityManager;
     private final TeacherRepository teacherRepository;
+    private final StudentRepository studentRepository;
+    private final SectionService sectionService;
 
     // get all grades
     @Transactional (readOnly = true)
@@ -73,6 +75,7 @@ public class GradeService {
                             new ResponseStatusException(HttpStatus.NOT_FOUND, "Calificacion no encontrada"));
         return new GradeResponseDTO(grade);
     }
+
 
     // get grades by result
     @Transactional (readOnly = true)
@@ -152,9 +155,7 @@ public class GradeService {
                 SecurityContextHolder.getContext().getAuthentication();
 
         if (!(authentication instanceof JwtAuthenticationToken jwtAuth)) {
-            throw new ResponseStatusException(
-                    HttpStatus.UNAUTHORIZED,
-                    "Usuario no autenticado");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no autenticado");
         }
 
         // administrators can manage grades
@@ -166,28 +167,20 @@ public class GradeService {
         // only teachers can register or update grades
         if (authentication.getAuthorities().stream()
                 .noneMatch(authority -> authority.getAuthority().equals("ROLE_TEACHER"))) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "No tiene permisos para modificar calificaciones");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tiene permisos para modificar calificaciones");
         }
 
         String keycloakSubject = jwtAuth.getToken().getSubject();
 
-        TeacherEntity teacher = teacherRepository
-                .findByKeycloakSubject(keycloakSubject)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.FORBIDDEN,
-                        "No existe un docente asociado a esta cuenta"));
+        TeacherEntity teacher = teacherRepository.findByKeycloakSubject(keycloakSubject).orElseThrow(() -> 
+                                new ResponseStatusException(HttpStatus.FORBIDDEN, "No existe un docente asociado a esta cuenta"));
 
         Long assignedTeacherId = enrollment.getSection().getTeacher().getId();
 
         if (!teacher.getId().equals(assignedTeacherId)) {
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "El docente no esta asignado a esta seccion");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "El docente no esta asignado a esta seccion");
         }
     }
-
 
 
     // calculate grade result
@@ -224,6 +217,7 @@ public class GradeService {
         validateGradeData(grade);
 
         EnrollmentEntity enrollment = findEnrollmentById(grade.getEnrollmentId());
+        validateGradeAccess(enrollment);
         lockOpenPeriod(enrollment.getAcademicPeriod().getId());
         entityManager.refresh(enrollment);
 
@@ -250,7 +244,9 @@ public class GradeService {
     // update grade
     @Transactional 
     public GradeResponseDTO updateGrade(Long id, GradeRequestDTO grade) {
+
         GradeEntity current = findGradeById(id);
+        validateGradeAccess(current.getEnrollment());
         lockOpenPeriod(current.getEnrollment().getAcademicPeriod().getId());
         entityManager.refresh(current);
 
@@ -274,4 +270,25 @@ public class GradeService {
         GradeEntity saved = gradeRepository.save(current);
         return new GradeResponseDTO(saved);
     }
+
+
+    // get grades of authenticated student
+    @Transactional(readOnly = true)
+    public List<GradeResponseDTO> getCurrentStudentGrades(String keycloakSubject) {
+
+        StudentEntity student = studentRepository.findByKeycloakSubject(keycloakSubject).orElseThrow(() -> 
+                                new ResponseStatusException(HttpStatus.NOT_FOUND,  "No existe un estudiante asociado a esta cuenta"));
+
+        return getGradesByStudent(student.getId());
+    }
+
+    // get grades only from a section assigned to the authenticated teacher
+    @Transactional(readOnly = true)
+    public List<GradeResponseDTO> getCurrentTeacherSectionGrades(String keycloakSubject, Long sectionId) {
+
+        sectionService.findCurrentTeacherSection(keycloakSubject, sectionId);
+        return gradeRepository.findByEnrollment_Section_IdAndEnrollment_Status(sectionId, EnrollmentStatus.ACTIVO)
+                .stream().map(GradeResponseDTO::new).toList();
+    }
+
 }

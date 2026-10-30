@@ -145,11 +145,9 @@ public class AcademicPeriodService {
         }
 
         if (!pendingSections.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "No se puede cerrar el periodo. Faltan calificaciones en las secciones: " + pendingSections);
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"No se puede cerrar el periodo. Faltan calificaciones en las secciones: " + pendingSections);
         }
     }
-
 
 
     // check if grade belongs to closed or current period
@@ -172,9 +170,6 @@ public class AcademicPeriodService {
         // include grades from previously closed periods
         return period.getStatus() == AcademicPeriodStatus.CERRADO;
     }
-
-
-
 
     
     // check if student failed the same subject twice
@@ -208,8 +203,6 @@ public class AcademicPeriodService {
 
         return false;
     }
-
-
 
     
     // check if student approved all subjects in study plan
@@ -247,8 +240,6 @@ public class AcademicPeriodService {
 
         return true;
     }
-
-
 
 
     // update student academic status

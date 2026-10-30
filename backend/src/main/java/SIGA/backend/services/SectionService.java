@@ -6,13 +6,17 @@ import SIGA.backend.entities.TeacherEntity;
 import SIGA.backend.entities.AcademicPeriodEntity;
 import SIGA.backend.entities.AcademicPeriodStatus;
 import SIGA.backend.entities.Status;
+import SIGA.backend.entities.EnrollmentEntity;
+import SIGA.backend.entities.EnrollmentStatus;
 
+import SIGA.backend.repositories.TeacherRepository;
+import SIGA.backend.repositories.EnrollmentRepository;
 import SIGA.backend.repositories.SectionRepository;
 import SIGA.backend.repositories.SubjectRepository;
-import SIGA.backend.repositories.TeacherRepository;
 import SIGA.backend.repositories.AcademicPeriodRepository;
-import SIGA.backend.repositories.EnrollmentRepository;
 
+import SIGA.backend.dtos.StudentResponseDTO;
+import SIGA.backend.dtos.SectionStudentResponseDTO;
 import SIGA.backend.dtos.SectionRequestDTO;
 import SIGA.backend.dtos.SectionResponseDTO;
 
@@ -101,13 +105,6 @@ public class SectionService {
     // find subject by id 
     private SubjectEntity findSubjectById(Long id) {
         return subjectRepository.findById(id).orElseThrow(()-> new ResponseStatusException(HttpStatus.NOT_FOUND, "Asignatura no encontrada"));
-    }
-
-
-    // find academic period by id
-    private AcademicPeriodEntity findAcademicPeriodById(Long id) {
-        return academicPeriodRepository.findById(id).orElseThrow(() ->
-                new ResponseStatusException(HttpStatus.NOT_FOUND, "Periodo academico no encontrado"));
     }
 
 
@@ -331,4 +328,53 @@ public class SectionService {
 
         sectionRepository.delete(section);
     }
+
+
+    // get sections assigned to authenticated teacher
+    @Transactional(readOnly = true)
+    public List<SectionResponseDTO> getCurrentTeacherSections(String keycloakSubject) {
+
+        TeacherEntity teacher = teacherRepository.findByKeycloakSubject(keycloakSubject).orElseThrow(() -> 
+                                new ResponseStatusException(HttpStatus.NOT_FOUND, "No existe un docente asociado a esta cuenta"));
+
+        List<SectionEntity> sections =
+                sectionRepository.findByTeacherId(teacher.getId());
+
+        return sections.stream().map(SectionResponseDTO::new).toList();
+    }
+
+
+    // get students enrolled in authenticated teacher section
+    @Transactional(readOnly = true)
+    public List<SectionStudentResponseDTO> getCurrentTeacherSectionStudents(String keycloakSubject, Long sectionId) {
+
+        findCurrentTeacherSection(keycloakSubject, sectionId);
+
+        // get active enrollments
+        List<EnrollmentEntity> enrollments = enrollmentRepository.findBySectionIdAndStatus(sectionId, EnrollmentStatus.ACTIVO);
+
+        return enrollments.stream().map(enrollment -> new SectionStudentResponseDTO(enrollment.getStudent())).toList();
+    }
+
+
+
+    // resolve section only after checking the authenticated teacher assignment
+    @Transactional(readOnly = true)
+    public SectionEntity findCurrentTeacherSection(String keycloakSubject, Long sectionId) {
+
+        // find authenticated teacher
+        TeacherEntity teacher = teacherRepository.findByKeycloakSubject(keycloakSubject).orElseThrow(() -> 
+                                new ResponseStatusException( HttpStatus.NOT_FOUND, "No existe un docente asociado a esta cuenta"));
+
+        // find section
+        SectionEntity section = findSectionById(sectionId);
+
+        // validate teacher assignment
+        if (!section.getTeacher().getId().equals(teacher.getId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tiene permisos para consultar esta seccion");
+        }
+
+        return section;
+    }
+
 }

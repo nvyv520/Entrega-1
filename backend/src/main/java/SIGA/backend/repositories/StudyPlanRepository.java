@@ -2,9 +2,9 @@ package SIGA.backend.repositories;
 
 import SIGA.backend.entities.StudyPlanEntity;
 import SIGA.backend.entities.StudyPlanStatus;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
-
 
 import java.util.List;
 import java.util.Optional;

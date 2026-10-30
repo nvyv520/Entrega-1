@@ -7,14 +7,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import SIGA.backend.dtos.TeacherRequestDTO;
-import SIGA.backend.dtos.TeacherResponseDTO;
 import SIGA.backend.entities.AcademicPeriodStatus;
 import SIGA.backend.entities.Status;
 import SIGA.backend.entities.TeacherEntity;
+
 import SIGA.backend.repositories.SectionRepository;
 import SIGA.backend.repositories.StudentRepository;
 import SIGA.backend.repositories.TeacherRepository;
+
+import SIGA.backend.dtos.TeacherRequestDTO;
+import SIGA.backend.dtos.TeacherResponseDTO;
 import lombok.RequiredArgsConstructor;
 
 
@@ -215,9 +217,7 @@ public class TeacherService {
 
         // verificar que la cuenta no pertenezca a un estudiante
         if (studentRepository.findByKeycloakSubject(subject).isPresent()) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "La cuenta de Keycloak ya esta asociada a un estudiante");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "La cuenta de Keycloak ya esta asociada a un estudiante");
         }
 
         // validate Keycloak user and role
@@ -236,9 +236,7 @@ public class TeacherService {
 
         TeacherEntity teacher = teacherRepository
                 .findByKeycloakSubject(keycloakSubject)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "No existe un docente asociado a esta cuenta"));
+                .orElseThrow(() -> new ResponseStatusException( HttpStatus.NOT_FOUND, "No existe un docente asociado a esta cuenta"));
 
         return new TeacherResponseDTO(teacher);
     }

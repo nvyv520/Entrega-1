@@ -127,8 +127,8 @@ public class StudentService {
     // encontrar el plan activo
     // auxiliar para crear un estudiante
     private StudyPlanEntity findCurrentStudyPlan(Long careerId) {
-        return studyPlanRepository.findByCareerIdAndStatus(careerId, StudyPlanStatus.VIGENTE)
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.CONFLICT, "La carrera no tiene un plan de estudio vigente"));
+        return studyPlanRepository.findByCareerIdAndStatus(careerId, StudyPlanStatus.VIGENTE).orElseThrow(() -> 
+                new ResponseStatusException(HttpStatus.CONFLICT, "La carrera no tiene un plan de estudio vigente"));
     }
 
 
@@ -296,6 +296,7 @@ public class StudentService {
         studentRepository.delete(student);
     }
 
+
     // link student with Keycloak
     @Transactional
     public StudentResponseDTO linkStudentKeycloak(Long id, String keycloakSubject) {
@@ -303,33 +304,25 @@ public class StudentService {
         StudentEntity student = findStudentById(id);
 
         if (keycloakSubject == null || keycloakSubject.isBlank()) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
-                    "El identificador de Keycloak es obligatorio");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El identificador de Keycloak es obligatorio");
         }
 
         String subject = keycloakSubject.trim();
 
         studentRepository.findByKeycloakSubject(subject).ifPresent(existing -> {
             if (!existing.getId().equals(id)) {
-                throw new ResponseStatusException(
-                        HttpStatus.CONFLICT,
-                        "La cuenta de Keycloak ya esta asociada a otro estudiante");
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "La cuenta de Keycloak ya esta asociada a otro estudiante");
             }
         });
 
         if (student.getKeycloakSubject() != null
                 && !student.getKeycloakSubject().equals(subject)) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "El estudiante ya tiene una cuenta de Keycloak asociada");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "El estudiante ya tiene una cuenta de Keycloak asociada");
         }
 
         // verificar que la cuenta no pertenezca a un docente
         if (teacherRepository.findByKeycloakSubject(subject).isPresent()) {
-            throw new ResponseStatusException(
-                    HttpStatus.CONFLICT,
-                    "La cuenta de Keycloak ya esta asociada a un docente");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "La cuenta de Keycloak ya esta asociada a un docente");
         }
 
         // validate Keycloak user and role
@@ -341,18 +334,18 @@ public class StudentService {
         return new StudentResponseDTO(saved);
     }
 
+
     // get authenticated student
     @Transactional(readOnly = true)
     public StudentResponseDTO getCurrentStudent(String keycloakSubject) {
 
         StudentEntity student = studentRepository
                 .findByKeycloakSubject(keycloakSubject)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "No existe un estudiante asociado a esta cuenta"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No existe un estudiante asociado a esta cuenta"));
 
         return new StudentResponseDTO(student);
     }
+
 
     // get authenticated student academic history
     @Transactional(readOnly = true)
@@ -360,9 +353,7 @@ public class StudentService {
 
         StudentEntity student = studentRepository
                 .findByKeycloakSubject(keycloakSubject)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
-                        "No existe un estudiante asociado a esta cuenta"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No existe un estudiante asociado a esta cuenta"));
 
         return getStudentAcademicHistory(student.getId());
     }

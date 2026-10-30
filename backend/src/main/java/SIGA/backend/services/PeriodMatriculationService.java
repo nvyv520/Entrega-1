@@ -30,8 +30,6 @@ import jakarta.persistence.LockModeType;
 public class PeriodMatriculationService {
 
     private final PeriodMatriculationRepository matriculationRepository;
-    private final StudentRepository studentRepository;
-    private final AcademicPeriodRepository academicPeriodRepository;
     private final EntityManager entityManager;
 
 
@@ -71,20 +69,6 @@ public class PeriodMatriculationService {
     public List<PeriodMatriculationResponseDTO> getMatriculationsByAcademicPeriod(Long periodId) {
         List<PeriodMatriculationEntity> matriculations = matriculationRepository.findByAcademicPeriodId(periodId);
         return matriculations.stream().map(PeriodMatriculationResponseDTO::new).toList();
-    }
-
-
-    // find student by id
-    private StudentEntity findStudentById(Long id) {
-        return studentRepository.findById(id).orElseThrow(() ->
-                new ResponseStatusException(HttpStatus.NOT_FOUND, "Estudiante no encontrado"));
-    }
-
-
-    // find academic period by id
-    private AcademicPeriodEntity findAcademicPeriodById(Long id) {
-        return academicPeriodRepository.findById(id).orElseThrow(() ->
-                new ResponseStatusException(HttpStatus.NOT_FOUND, "Periodo academico no encontrado"));
     }
 
 

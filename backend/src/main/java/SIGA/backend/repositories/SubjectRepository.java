@@ -1,6 +1,7 @@
 package SIGA.backend.repositories;
 
 import SIGA.backend.entities.SubjectEntity;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
