@@ -3,17 +3,25 @@ import { useEffect, useState } from "react";
 import {
     Alert,
     Box,
+    Button,
     CircularProgress,
     Typography
 } from "@mui/material";
 
 import subjectService from "../../services/subject.service";
+import { getCurrentSelection, studentErrorMessage } from "../../services/studentAcademic";
+
+// Eligibility depends on academic records, independently of the displayed status/color.
+function hasApprovedPrerequisites(subject, history) {
+    return (subject.prerequisiteIds || []).every(prerequisiteId => history.some(record =>
+        Number(record.subjectId) === Number(prerequisiteId) && record.result === "APROBADO"
+    ));
+}
 
 // determine the academic status of a subject
-function getSubjectStatus(subject, history, enrollments) {
-
+function getSubjectStatus(subject, history, currentSubjectIds) {
     const subjectHistory = history.filter(
-        record => record.subjectId === subject.id
+        record => Number(record.subjectId) === Number(subject.id)
     );
 
     // check if the subject was approved
@@ -25,17 +33,8 @@ function getSubjectStatus(subject, history, enrollments) {
         return "approved";
     }
 
-    // check if the student is currently enrolled
-    const currentEnrollment = subjectHistory.some(record =>
-        record.enrollmentStatus === "ACTIVO" &&
-        record.result === null &&
-        enrollments.some(enrollment =>
-            enrollment.id === record.enrollmentId &&
-            enrollment.status === "ACTIVO"
-        )
-    );
-
-    if (currentEnrollment) {
+    // Check if the subject is currently enrolled
+    if (currentSubjectIds.has(Number(subject.id))) {
         return "in-progress";
     }
 
@@ -49,12 +48,7 @@ function getSubjectStatus(subject, history, enrollments) {
     }
 
     // check prerequisites
-    const prerequisitesApproved = (subject.prerequisiteIds || []).every(
-        prerequisiteId => history.some(record =>
-            record.subjectId === prerequisiteId &&
-            record.result === "APROBADO"
-        )
-    );
+    const prerequisitesApproved = hasApprovedPrerequisites(subject, history);
 
     if (prerequisitesApproved) {
         return "eligible";
@@ -73,7 +67,7 @@ const statusStyles = {
         color: "var(--in-progress-color)"
     },
     eligible: {
-        label: "Con derecho",
+        label: "Con derecho a inscripción",
         color: "var(--eligible-color)"
     },
     failed: {
@@ -81,7 +75,7 @@ const statusStyles = {
         color: "var(--failed-color)"
     },
     blocked: {
-        label: "Bloqueada",
+        label: "Bloqueada por prerrequisitos",
         color: "var(--blocked-color)"
     }
 };
@@ -92,12 +86,15 @@ function StudentStudyPlan() {
     /* guardar informacion */
     const [subjects, setSubjects] = useState([]);
     const [history, setHistory] = useState([]);
-    const [enrollments, setEnrollments] = useState([]);
+    const [currentSubjectIds, setCurrentSubjectIds] = useState(new Set());
     const [careerName, setCareerName] = useState("");
     const [studyPlanCode, setStudyPlanCode] = useState("");
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [retry, setRetry] = useState(0);
+    const [selectionMessage, setSelectionMessage] = useState("");
+    const [selectionError, setSelectionError] = useState(false);
 
     /* cargar datos */
     useEffect(() => {
@@ -105,6 +102,8 @@ function StudentStudyPlan() {
         let active = true;
 
         const loadStudyPlan = async () => {
+            setLoading(true);
+            setError("");
 
             try {
                 const studentResponse =
@@ -124,20 +123,36 @@ function StudentStudyPlan() {
                     setCareerName(careerResponse.data.name);
                 }
 
-                const [
-                    subjectsResponse,
-                    historyResponse,
-                    enrollmentsResponse
-                ] = await Promise.all([
+                const [subjectsResponse, historyResponse, selectionResult] = await Promise.all([
                     subjectService.getSubjectsByStudyPlan(studyPlanId),
                     subjectService.getCurrentStudentAcademicHistory(),
-                    subjectService.getCurrentStudentEnrollments()
+                    getCurrentSelection().then(data => ({ data })).catch(error => ({ error }))
                 ]);
 
+                const inProgressIds = new Set();
+                let message = "";
+                if (selectionResult.error) {
+                    message = studentErrorMessage(selectionResult.error,
+                        "No se pudo consultar la selección actual. Se conserva el historial; el estado Cursando no está disponible. Vuelve a ingresar para reintentar.");
+                } else {
+                    const selection = selectionResult.data;
+                    if (!selection.period) {
+                        message = "No hay un período académico abierto. Se muestran los estados del historial y los prerrequisitos.";
+                    } else if (!selection.verified) {
+                        message = `La selección del período ${selection.period.code} está pendiente de verificación. Las inscripciones aún no se muestran como Cursando.`;
+                    }
+                    const sectionIds = new Set(selection.enrollments.map(enrollment => Number(enrollment.sectionId)));
+                    selection.sections.filter(section => sectionIds.has(Number(section.id)))
+                        .forEach(section => inProgressIds.add(Number(section.subjectId)));
+                }
+
+
                 if (active) {
+                    setSelectionError(Boolean(selectionResult.error));
+                    setSelectionMessage(message);
                     setSubjects(subjectsResponse.data);
                     setHistory(historyResponse.data);
-                    setEnrollments(enrollmentsResponse.data);
+                    setCurrentSubjectIds(inProgressIds);
                 }
 
             } catch (error) {
@@ -145,7 +160,7 @@ function StudentStudyPlan() {
                 console.error("Error loading study plan:", error);
 
                 if (active) {
-                    setError("No se pudo cargar el plan de estudio");
+                    setError(studentErrorMessage(error, "No se pudo cargar el plan de estudio. Vuelve a ingresar a esta vista para reintentar."));
                 }
 
             } finally {
@@ -162,7 +177,7 @@ function StudentStudyPlan() {
             active = false;
         };
 
-    }, []);
+    }, [retry]);
 
     // group subjects by semester
     const semesters = [...new Set(
@@ -178,7 +193,10 @@ function StudentStudyPlan() {
     }
 
     if (error) {
-        return <Alert severity="error">{error}</Alert>;
+        return <Box>
+            <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+            <Button variant="outlined" onClick={() => setRetry(value => value + 1)}>Reintentar</Button>
+        </Box>;
     }
 
     return (
@@ -204,6 +222,11 @@ function StudentStudyPlan() {
             </Box>
 
 
+            {selectionMessage && <Alert severity={selectionError ? "warning" : "info"} sx={{ mb: 3 }}>
+                {selectionMessage}
+                {selectionError && <Button onClick={() => setRetry(value => value + 1)}>Reintentar</Button>}
+            </Alert>}
+
             {/* Study plan organized by semester */}
             <Box
                 sx={{
@@ -221,6 +244,7 @@ function StudentStudyPlan() {
                                 bgcolor: "var(--curriculum-blue)",
                                 color: "#FFFFFF",
                                 textAlign: "center",
+                                borderRadius: "10px",
                                 py: 1,
                                 mb: 2
                             }}
@@ -238,16 +262,17 @@ function StudentStudyPlan() {
                                 const status = getSubjectStatus(
                                     subject,
                                     history,
-                                    enrollments
+                                    currentSubjectIds
                                 );
 
                                 return (
                                     <Box
                                         key={subject.id}
+                                        title={statusStyles[status].label}
                                         sx={{
                                             bgcolor: statusStyles[status].color,
                                             border: "1px solid var(--border-color)",
-                                            borderRadius: "3px",
+                                            borderRadius: "10px",
                                             p: 1.5,
                                             mb: 1.5,
                                             minHeight: 90
@@ -269,6 +294,12 @@ function StudentStudyPlan() {
                                         >
                                             {subject.name}
                                         </Typography>
+                                        <Typography variant="caption" display="block">{statusStyles[status].label}</Typography>
+                                        {status === "failed" && <Typography variant="caption" display="block">
+                                            {hasApprovedPrerequisites(subject, history)
+                                                ? "Prerrequisitos aprobados"
+                                                : "Prerrequisitos pendientes"}
+                                        </Typography>}
                                     </Box>
                                 );
                             })}

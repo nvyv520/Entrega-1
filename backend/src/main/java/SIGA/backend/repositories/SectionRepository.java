@@ -5,6 +5,7 @@ import SIGA.backend.entities.SectionEntity;
 import SIGA.backend.entities.Status;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -16,6 +17,7 @@ public interface SectionRepository extends JpaRepository<SectionEntity, Long> {
     List<SectionEntity> findBySubjectId(Long subjectId);
 
     // find by academic period id
+    @EntityGraph(attributePaths = {"subject", "subject.studyPlan", "teacher", "blocks", "academicPeriod"})
     List<SectionEntity> findByAcademicPeriodId(Long academicPeriodId);
 
     // find by teacher id

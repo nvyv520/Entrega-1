@@ -18,6 +18,7 @@ import static org.mockito.Mockito.*;
 class EnrollmentAuthorizationTests {
     private EnrollmentService service;
     private EnrollmentRepository enrollments;
+    private SubjectRepository subjects;
     private StudentRepository students;
     private PeriodMatriculationRepository matriculations;
     private GradeRepository grades;
@@ -35,10 +36,10 @@ class EnrollmentAuthorizationTests {
         matriculations = mock(PeriodMatriculationRepository.class);
         grades = mock(GradeRepository.class);
         entityManager = mock(EntityManager.class);
-        SubjectRepository subjects = mock(SubjectRepository.class);
+        subjects = mock(SubjectRepository.class);
         SectionRepository sections = mock(SectionRepository.class);
         service = new EnrollmentService(enrollments, students, sections, matriculations, grades,
-                entityManager, subjects, mock(AcademicPeriodRepository.class));
+                entityManager, subjects);
         StudyPlanEntity plan = new StudyPlanEntity();
         plan.setId(2L);
         student = new StudentEntity();
@@ -82,8 +83,9 @@ class EnrollmentAuthorizationTests {
     }
 
     @Test
-    void personalConfirmationAllowsOneSubjectAndAnAlreadyOccupiedSeat() {
-        service.confirmCurrentStudentEnrollmentSelection("student-sub", 3L);
+    void personalVerificationAllowsLastPendingSubjectAndAnAlreadyOccupiedSeat() {
+        when(subjects.findByStudyPlanId(2L)).thenReturn(List.of(section.getSubject()));
+        service.verifyCurrentStudentSelection("student-sub", 3L);
         assertTrue(matriculation.getEnrollmentConfirmed());
         verify(matriculations).save(matriculation);
         var order = inOrder(entityManager);
@@ -101,33 +103,34 @@ class EnrollmentAuthorizationTests {
     }
 
     @Test
-    void closedPeriodAndRepeatedConfirmationAreRejected() {
+    void closedPeriodIsRejectedAndOpenSelectionCanBeVerifiedAgain() {
         period.setStatus(AcademicPeriodStatus.CERRADO);
         assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
-                () -> service.confirmCurrentStudentEnrollmentSelection("student-sub", 3L)).getStatusCode());
+                () -> service.verifyCurrentStudentSelection("student-sub", 3L)).getStatusCode());
         period.setStatus(AcademicPeriodStatus.ABIERTO);
         matriculation.setEnrollmentConfirmed(true);
-        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
-                () -> service.confirmCurrentStudentEnrollmentSelection("student-sub", 3L)).getStatusCode());
-        verify(matriculations, never()).save(any());
+        when(subjects.findByStudyPlanId(2L)).thenReturn(List.of(section.getSubject()));
+        service.verifyCurrentStudentSelection("student-sub", 3L);
+        assertTrue(matriculation.getEnrollmentConfirmed());
+        verify(matriculations).save(matriculation);
     }
 
     @Test
     void missingStudentOrMatriculationCannotConfirm() {
         assertEquals(HttpStatus.NOT_FOUND, assertThrows(ResponseStatusException.class,
-                () -> service.confirmCurrentStudentEnrollmentSelection("unknown", 3L)).getStatusCode());
+                () -> service.verifyCurrentStudentSelection("unknown", 3L)).getStatusCode());
         when(matriculations.findByStudentIdAndAcademicPeriodId(5L, 3L)).thenReturn(Optional.empty());
         assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
-                () -> service.confirmCurrentStudentEnrollmentSelection("student-sub", 3L)).getStatusCode());
+                () -> service.verifyCurrentStudentSelection("student-sub", 3L)).getStatusCode());
     }
 
     @Test
     void inactiveStudentAndOverCapacityCannotConfirm() {
         student.setStatus(StudentStatus.ELIMINADO);
-        assertThrows(ResponseStatusException.class, () -> service.confirmCurrentStudentEnrollmentSelection("student-sub", 3L));
+        assertThrows(ResponseStatusException.class, () -> service.verifyCurrentStudentSelection("student-sub", 3L));
         student.setStatus(StudentStatus.REGULAR);
         when(enrollments.countBySectionIdAndStatus(10L, EnrollmentStatus.ACTIVO)).thenReturn(2L);
-        assertThrows(ResponseStatusException.class, () -> service.confirmCurrentStudentEnrollmentSelection("student-sub", 3L));
+        assertThrows(ResponseStatusException.class, () -> service.verifyCurrentStudentSelection("student-sub", 3L));
         verify(matriculations, never()).save(any());
     }
 
@@ -136,7 +139,7 @@ class EnrollmentAuthorizationTests {
         SubjectEntity prerequisite = new SubjectEntity(); prerequisite.setId(30L);
         section.getSubject().setPrerequisites(Set.of(prerequisite));
         assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
-                () -> service.confirmCurrentStudentEnrollmentSelection("student-sub", 3L)).getStatusCode());
+                () -> service.verifyCurrentStudentSelection("student-sub", 3L)).getStatusCode());
         verify(matriculations, never()).save(any());
     }
 
@@ -160,7 +163,7 @@ class EnrollmentAuthorizationTests {
         another.setSection(conflicting);
         when(enrollments.findByStudentIdAndAcademicPeriodId(5L, 3L)).thenReturn(List.of(enrollment, another));
         assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
-                () -> service.confirmCurrentStudentEnrollmentSelection("student-sub", 3L)).getStatusCode());
+                () -> service.verifyCurrentStudentSelection("student-sub", 3L)).getStatusCode());
         verify(matriculations, never()).save(any());
     }
 
@@ -169,7 +172,7 @@ class EnrollmentAuthorizationTests {
         when(enrollments.findByStudentIdAndAcademicPeriodId(5L, 3L))
                 .thenReturn(java.util.Collections.nCopies(7, enrollment));
         assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
-                () -> service.confirmCurrentStudentEnrollmentSelection("student-sub", 3L)).getStatusCode());
+                () -> service.verifyCurrentStudentSelection("student-sub", 3L)).getStatusCode());
         verify(matriculations, never()).save(any());
     }
 }

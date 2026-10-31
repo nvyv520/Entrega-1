@@ -1,27 +1,34 @@
 package SIGA.backend.controllers;
 
-import SIGA.backend.entities.EnrollmentStatus;
+import java.net.URI;
+import java.util.List;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.ProblemDetail;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import SIGA.backend.dtos.EnrollmentRequestDTO;
 import SIGA.backend.dtos.EnrollmentResponseDTO;
-
+import SIGA.backend.dtos.SectionResponseDTO;
+import SIGA.backend.entities.EnrollmentStatus;
 import SIGA.backend.services.EnrollmentService;
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
-
-import java.net.URI;
-import java.util.List;
 
 
 @RestController
@@ -31,6 +38,12 @@ import java.util.List;
 public class EnrollmentController {
 
     private final EnrollmentService enrollmentService;
+
+    // Return academic validation reasons without exposing internal exceptions.
+    @ExceptionHandler(ResponseStatusException.class)
+    public ProblemDetail handleEnrollmentError(ResponseStatusException exception) {
+        return ProblemDetail.forStatusAndDetail(exception.getStatusCode(), exception.getReason());
+    }
 
 
     // get enrollments of authenticated student
@@ -43,6 +56,15 @@ public class EnrollmentController {
     public ResponseEntity<List<EnrollmentResponseDTO>> getCurrentStudentEnrollments( @AuthenticationPrincipal Jwt jwt) {
         List<EnrollmentResponseDTO> enrollments = enrollmentService.getCurrentStudentEnrollments(jwt.getSubject());
         return ResponseEntity.ok(enrollments);
+    }
+
+
+    // Academic catalogue for the authenticated student
+    @GetMapping("/me/academic-period/{periodId}/eligible-sections")
+    @Operation(summary = "Get academically eligible sections and existing enrollments for authenticated student")
+    public ResponseEntity<List<SectionResponseDTO>> getCurrentStudentEligibleSections(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long periodId) {
+        return ResponseEntity.ok(enrollmentService.getCurrentStudentEligibleSections(jwt.getSubject(), periodId));
     }
 
 
@@ -81,18 +103,37 @@ public class EnrollmentController {
     }
 
 
-    @PatchMapping("/me/academic-period/{periodId}/confirm")
-    @Operation(summary = "Confirm authenticated student subject selection")
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Selection confirmed"),
-            @ApiResponse(responseCode = "404", description = "Student or period not found"),
-            @ApiResponse(responseCode = "409", description = "Selection cannot be confirmed")
-    })
-    public ResponseEntity<Void> confirmCurrentStudentEnrollmentSelection(
-            @AuthenticationPrincipal Jwt jwt, @PathVariable Long periodId) {
-        enrollmentService.confirmCurrentStudentEnrollmentSelection(jwt.getSubject(), periodId);
+    // Verify current student's subject selection
+    @PostMapping("/me/academic-period/{periodId}/verify")
+    @Operation(summary = "Verify authenticated student's subject selection")
+    public ResponseEntity<Void> verifyCurrentStudentSelection(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long periodId) {
+
+        enrollmentService.verifyCurrentStudentSelection(
+                jwt.getSubject(),
+                periodId
+        );
+
         return ResponseEntity.noContent().build();
     }
+
+
+    @GetMapping("/me/academic-period/{periodId}/verification-status")
+    @Operation(summary = "Get authenticated student selection verification status")
+    public ResponseEntity<Boolean> getCurrentStudentVerificationStatus(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long periodId) {
+
+        boolean verified =
+                enrollmentService.isCurrentStudentSelectionVerified(
+                        jwt.getSubject(),
+                        periodId
+                );
+
+        return ResponseEntity.ok(verified);
+    }
+
 
     // get all enrollments
     @GetMapping

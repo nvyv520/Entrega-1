@@ -24,11 +24,16 @@ public class SectionResponseDTO {
     private Status status;
     private Set<String> blocks;
 
+    // Expose only the display name, without granting access to teacher administration.
+    private String teacherName;
+
     public SectionResponseDTO(SectionEntity section) {
         this.id = section.getId();
         this.subjectId = section.getSubject().getId();
         this.academicPeriodId = section.getAcademicPeriod().getId();
-        this.teacherId = section.getTeacher().getId();
+        this.teacherId = section.getTeacher() == null ? null : section.getTeacher().getId();
+        this.teacherName = section.getTeacher() == null ? null :
+                section.getTeacher().getFirstName() + " " + section.getTeacher().getLastName();
         this.capacity = section.getCapacity();
         this.enrolledStudents = section.getEnrolledStudents();
         this.status = section.getStatus();

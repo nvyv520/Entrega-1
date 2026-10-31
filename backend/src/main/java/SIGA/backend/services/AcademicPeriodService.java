@@ -374,7 +374,7 @@ public class AcademicPeriodService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El periodo academico ya esta cerrado");
         }
 
-        // check if these students confirmed their selections
+        // Selection verification is not a prerequisite for academic closing.
         List<PeriodMatriculationEntity> matriculations = periodMatriculationRepository.findByAcademicPeriodId(id);
 
         // verify all active enrollments have grades

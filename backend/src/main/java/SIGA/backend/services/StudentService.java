@@ -108,16 +108,20 @@ public class StudentService {
         List<EnrollmentEntity> enrollments = enrollmentRepository.findByStudentId(id);
 
         List<StudentAcademicHistoryDTO> history = new ArrayList<>();
-
-        // recorrer las inscripciones
         for (EnrollmentEntity enrollment : enrollments) {
 
-            // buscar la calificacion de cada inscripcion
             GradeEntity grade = gradeRepository.findByEnrollmentId(enrollment.getId()).orElse(null);
 
-            // agregar la informacion al historial
+            // Only actual grades establish an academic result, regardless of period chronology.
+            // An ungraded enrollment in a closed period is inconsistent with closing rules.
+            if (grade == null) {
+                continue;
+            }
+
+            // Keep each graded attempt once, identified by enrollment and academic period.
             history.add(new StudentAcademicHistoryDTO(enrollment, grade));
         }
+
 
         return history;
     }

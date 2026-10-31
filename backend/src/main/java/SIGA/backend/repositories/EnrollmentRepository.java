@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import SIGA.backend.entities.EnrollmentEntity;
@@ -11,6 +13,16 @@ import SIGA.backend.entities.EnrollmentStatus;
 
 @Repository 
 public interface EnrollmentRepository extends JpaRepository<EnrollmentEntity, Long> {
+
+    interface SectionEnrollmentCount {
+        Long getSectionId();
+        Long getTotal();
+    }
+
+    @Query("select e.section.id as sectionId, count(e) as total from EnrollmentEntity e " +
+            "where e.academicPeriod.id = :periodId and e.status = :status group by e.section.id")
+    List<SectionEnrollmentCount> countEnrollmentsBySectionInPeriod(@Param("periodId") Long periodId,
+                                                                 @Param("status") EnrollmentStatus status);
     
     // find by student 
     List<EnrollmentEntity> findByStudentId(Long studentId);

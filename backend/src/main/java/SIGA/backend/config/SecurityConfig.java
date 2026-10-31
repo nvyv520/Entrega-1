@@ -131,8 +131,22 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/enrollments/me/*/cancel")
                                 .hasRole("STUDENT")
 
-                        .requestMatchers(HttpMethod.PATCH, "/api/enrollments/me/academic-period/*/confirm")
+                        
+                        // Verify student enrollment selection
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/enrollments/me/academic-period/*/verify"
+                        )
                                 .hasRole("STUDENT")
+
+                        // Student selection status and academically eligible catalogue
+                        .requestMatchers(
+                                HttpMethod.GET,
+                                "/api/enrollments/me/academic-period/*/verification-status",
+                                "/api/enrollments/me/academic-period/*/eligible-sections"
+                        )
+                                .hasRole("STUDENT")
+
 
                         // Enrollments - administration
                         .requestMatchers("/api/enrollments", "/api/enrollments/**")

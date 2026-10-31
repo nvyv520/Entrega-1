@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import PropTypes from "prop-types";
 
 function AppHeader({ name, role, onProfile, onLogout }) {
 
@@ -174,5 +175,12 @@ function AppHeader({ name, role, onProfile, onLogout }) {
         </AppBar>
     );
 }
+
+AppHeader.propTypes = {
+    name: PropTypes.string.isRequired,
+    role: PropTypes.string.isRequired,
+    onProfile: PropTypes.func.isRequired,
+    onLogout: PropTypes.func.isRequired
+};
 
 export default AppHeader;

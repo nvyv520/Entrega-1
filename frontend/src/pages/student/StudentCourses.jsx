@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
     Alert,
     Box,
+    Button,
     CircularProgress,
     Table,
     TableBody,
@@ -14,7 +15,10 @@ import {
     Typography
 } from "@mui/material";
 
-import http from "../../http-common";
+import subjectService from "../../services/subject.service";
+import { getCurrentSelection, studentErrorMessage } from "../../services/studentAcademic";
+
+
 
 const days = [
     { code: "L", label: "Lunes" },
@@ -28,83 +32,48 @@ const blocks = [1, 2, 3, 4, 5, 6];
 
 function StudentCourses() {
 
+    const [verified, setVerified] = useState(false);
     const [courses, setCourses] = useState([]);
+    const [periodCode, setPeriodCode] = useState("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [retry, setRetry] = useState(0);
 
     useEffect(() => {
 
         let active = true;
 
         const loadCourses = async () => {
+            setLoading(true);
+            setError("");
 
             try {
 
-                // Get authenticated student enrollments
-                const enrollmentsResponse =
-                    await http.get("/enrollments/me");
-
-                const activeEnrollments =
-                    enrollmentsResponse.data.filter(
-                        enrollment => enrollment.status === "ACTIVO"
-                    );
-
-                // Get sections corresponding to enrollments
-                const sectionIds = [
-                    ...new Set(
-                        activeEnrollments.map(
-                            enrollment => enrollment.sectionId
-                        )
-                    )
-                ];
-
-                const sections = await Promise.all(
-                    sectionIds.map(async sectionId => {
-                        const response =
-                            await http.get(`/sections/${sectionId}`);
-
-                        return response.data;
-                    })
-                );
-
-                // Get subject information
-                const subjectIds = [
-                    ...new Set(
-                        sections.map(section => section.subjectId)
-                    )
-                ];
-
-                const subjects = await Promise.all(
-                    subjectIds.map(async subjectId => {
-                        const response =
-                            await http.get(`/subjects/${subjectId}`);
-
-                        return response.data;
-                    })
-                );
-
-                const coursesData = activeEnrollments.map(enrollment => {
-
-                    const section = sections.find(
-                        item => item.id === enrollment.sectionId
-                    );
-
-                    const subject = subjects.find(
-                        item => item.id === section?.subjectId
-                    );
-
-                    return {
-                        enrollmentId: enrollment.id,
-                        sectionId: enrollment.sectionId,
-                        subjectCode: subject?.code || "",
-                        subjectName: subject?.name || "",
-                        blocks: section?.blocks || []
-                    };
-
-                });
+                const selection = await getCurrentSelection();
+                const { period: currentPeriod, verified: isVerified, enrollments, sections } = selection;
+                let coursesData = [];
+                if (isVerified && enrollments.length > 0) {
+                    const studentResponse = await subjectService.getCurrentStudent();
+                    const subjectsResponse = await subjectService.getSubjectsByStudyPlan(studentResponse.data.studyPlanId);
+                    coursesData = enrollments.map(enrollment => {
+                        const section = sections.find(item => Number(item.id) === Number(enrollment.sectionId));
+                        const subject = subjectsResponse.data.find(item => Number(item.id) === Number(section?.subjectId));
+                        if (!section || !subject) throw new Error("Información de curso incompleta");
+                        return {
+                            enrollmentId: enrollment.id,
+                            sectionId: section.id,
+                            subjectCode: subject.code,
+                            subjectName: subject.name,
+                            teacherName: section.teacherName || "Docente no informado",
+                            blocks: section.blocks || []
+                        };
+                    });
+                }
 
                 if (active) {
                     setCourses(coursesData);
+                    setVerified(isVerified);
+                    setPeriodCode(currentPeriod?.code || "");
                 }
 
             } catch (error) {
@@ -112,7 +81,7 @@ function StudentCourses() {
                 console.error("Error loading courses:", error);
 
                 if (active) {
-                    setError("No se pudieron cargar los cursos");
+                    setError(studentErrorMessage(error, "No se pudieron cargar los cursos o consultar la verificación de tu selección. Vuelve a ingresar a esta vista para reintentar."));
                 }
 
             } finally {
@@ -129,7 +98,7 @@ function StudentCourses() {
             active = false;
         };
 
-    }, []);
+    }, [retry]);
 
     if (loading) {
         return (
@@ -140,7 +109,10 @@ function StudentCourses() {
     }
 
     if (error) {
-        return <Alert severity="error">{error}</Alert>;
+        return <Box>
+            <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+            <Button variant="outlined" onClick={() => setRetry(value => value + 1)}>Reintentar</Button>
+        </Box>;
     }
 
     return (
@@ -153,17 +125,20 @@ function StudentCourses() {
                 Mis cursos
             </Typography>
 
-            <Typography
-                variant="h6"
-                sx={{ mb: 2, fontWeight: 600 }}
-            >
-                Asignaturas inscritas
+
+            <Typography variant="body2" sx={{ mb: 2 }}>
+                {periodCode
+                    ? `Período académico: ${periodCode}`
+                    : "No hay un período académico abierto."}
             </Typography>
+
 
             {courses.length === 0 ? (
                 
             <Alert severity="info" sx={{ mb: 3 }}>
-                No tienes asignaturas inscritas actualmente.
+                {periodCode && !verified
+                    ? "Tu selección está pendiente de verificación. Verifícala en Inscripción para ver tus cursos actuales."
+                    : "No tienes cursos verificados en el período académico actual."}
             </Alert>
             
             ) : (
@@ -172,8 +147,6 @@ function StudentCourses() {
                     {/* Enrolled courses table */}
                     <TableContainer
                         sx={{
-                            border: "1px solid var(--border-color)",
-                            borderRadius: "3px",
                             mb: 4
                         }}
                     >
@@ -188,6 +161,7 @@ function StudentCourses() {
                                         "Código",
                                         "Asignatura",
                                         "Sección",
+                                        "Docente",
                                         "Bloques"
                                     ].map(column => (
                                         <TableCell
@@ -219,6 +193,10 @@ function StudentCourses() {
                                         </TableCell>
 
                                         <TableCell>
+                                            {course.teacherName}
+                                        </TableCell>
+
+                                        <TableCell>
                                             {course.blocks.join(", ")}
                                         </TableCell>
                                     </TableRow>
@@ -237,12 +215,7 @@ function StudentCourses() {
                     </Typography>
 
                     {/* Weekly schedule */}
-                    <TableContainer
-                        sx={{
-                            border: "1px solid var(--border-color)",
-                            borderRadius: "3px"
-                        }}
-                    >
+                    <TableContainer>
                         <Table
                             size="small"
                             sx={{ tableLayout: "fixed" }}
@@ -311,7 +284,9 @@ function StudentCourses() {
                                                         bgcolor: course
                                                             ? "var(--in-progress-color)"
                                                             : "#FFFFFF",
-                                                        border:
+                                                        borderRight:
+                                                            "1px solid var(--border-color)",
+                                                        borderBottom:
                                                             "1px solid var(--border-color)"
                                                     }}
                                                 >

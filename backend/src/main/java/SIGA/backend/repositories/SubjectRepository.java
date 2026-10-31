@@ -3,6 +3,7 @@ package SIGA.backend.repositories;
 import SIGA.backend.entities.SubjectEntity;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -17,6 +18,7 @@ public interface SubjectRepository extends JpaRepository<SubjectEntity, Long> {
     List<SubjectEntity> findBySemester(Integer semester);
 
     // find by study plan id
+    @EntityGraph(attributePaths = "prerequisites")
     List<SubjectEntity> findByStudyPlanId(Long studyPlanId);
 
     // find by study plan id and code

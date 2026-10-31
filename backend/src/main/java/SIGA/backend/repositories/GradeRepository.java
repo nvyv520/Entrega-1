@@ -6,12 +6,24 @@ import SIGA.backend.entities.EnrollmentStatus;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
 
 @Repository 
 public interface GradeRepository extends JpaRepository<GradeEntity, Long> {
+
+    @Query("select distinct g.enrollment.section.subject.id from GradeEntity g " +
+            "where g.enrollment.student.id = :studentId and g.result = :result")
+    List<Long> findSubjectIdsByStudentAndResult(@Param("studentId") Long studentId,
+                                              @Param("result") GradeResult result);
+
+    @Query("select g.enrollment.section.id from GradeEntity g " +
+            "where g.enrollment.student.id = :studentId and g.enrollment.academicPeriod.id = :periodId")
+    List<Long> findGradedSectionIdsByStudentAndPeriod(@Param("studentId") Long studentId,
+                                                    @Param("periodId") Long periodId);
 
     // find by enrollment id
     Optional<GradeEntity> findByEnrollmentId(Long enrollmentId);

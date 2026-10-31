@@ -16,6 +16,11 @@ const getSectionsByAcademicPeriod = (periodId) => {
     return http.get(`/sections/academic-period/${periodId}`);
 };
 
+// Academic eligibility is decided by the backend for the authenticated student.
+const getEligibleSections = (periodId) => {
+    return http.get(`/enrollments/me/academic-period/${periodId}/eligible-sections`);
+};
+
 // get subjects by study plan
 const getSubjectsByStudyPlan = (studyPlanId) => {
     return http.get(`/subjects/study-plan/${studyPlanId}`);
@@ -36,22 +41,28 @@ const cancelEnrollment = (enrollmentId) => {
     return http.patch(`/enrollments/me/${enrollmentId}/cancel`);
 };
 
-// confirm enrollment selection for academic period
-const confirmSelection = (periodId) => {
-    return http.patch(
-        `/enrollments/me/academic-period/${periodId}/confirm`
+const verifySelection = (periodId) => {
+    return http.post(`/enrollments/me/academic-period/${periodId}/verify`);
+};
+
+const getVerificationStatus = (periodId) => {
+    return http.get(
+        `/enrollments/me/academic-period/${periodId}/verification-status`
     );
 };
+
 
 const enrollmentService = {
     getCurrentStudent,
     getOpenAcademicPeriods,
     getSectionsByAcademicPeriod,
+    getEligibleSections,
     getSubjectsByStudyPlan,
     getCurrentEnrollments,
     createEnrollment,
     cancelEnrollment,
-    confirmSelection
+    verifySelection,
+    getVerificationStatus,
 };
 
 export default enrollmentService;

@@ -1,13 +1,11 @@
-
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
     Alert,
     Box,
     Button,
     CircularProgress,
-    MenuItem,
-    Select,
+    Snackbar,
     Table,
     TableBody,
     TableCell,
@@ -18,6 +16,7 @@ import {
 } from "@mui/material";
 
 import enrollmentService from "../../services/enrollment.service";
+import { latestAcademicPeriod, studentErrorMessage } from "../../services/studentAcademic";
 
 const days = [
     { code: "L", label: "Lunes" },
@@ -43,153 +42,149 @@ function StudentEnrollment() {
 
     const [enrollingSectionId, setEnrollingSectionId] = useState(null);
     const [success, setSuccess] = useState("");
+    const [selectionNoticeDismissed, setSelectionNoticeDismissed] = useState(false);
 
-    // Load student information and academic periods
+    const [verifying, setVerifying] = useState(false);
+    const [verified, setVerified] = useState(null);
+    const [dataReady, setDataReady] = useState(false);
+    const [retry, setRetry] = useState(0);
+    const operationRef = useRef(false);
+    const [cancellingId, setCancellingId] = useState(null);
+    const busy = verifying || enrollingSectionId !== null;
+
     useEffect(() => {
-
         let active = true;
-
         const loadInitialData = async () => {
-
+            setLoading(true);
+            setDataReady(false);
+            setError("");
+            setSuccess("");
+            setSelectionNoticeDismissed(false);
+            setVerified(null);
+            setSelectedPeriodId("");
+            setSections([]);
+            setEnrollments([]);
             try {
-                const [studentResponse, periodsResponse, enrollmentsResponse] =
-                    await Promise.all([
-                        enrollmentService.getCurrentStudent(),
-                        enrollmentService.getOpenAcademicPeriods(),
-                        enrollmentService.getCurrentEnrollments()
-                    ]);
-
-                const studyPlanId = studentResponse.data.studyPlanId;
-
-                const subjectsResponse =
-                    await enrollmentService.getSubjectsByStudyPlan(studyPlanId);
-
+                const [studentResponse, periodsResponse] = await Promise.all([
+                    enrollmentService.getCurrentStudent(),
+                    enrollmentService.getOpenAcademicPeriods()
+                ]);
+                const period = latestAcademicPeriod(periodsResponse.data);
+                const [subjectsResponse, enrollmentsResponse, sectionsResponse, statusResponse] = await Promise.all([
+                    enrollmentService.getSubjectsByStudyPlan(studentResponse.data.studyPlanId),
+                    enrollmentService.getCurrentEnrollments(),
+                    period ? enrollmentService.getEligibleSections(period.id) : Promise.resolve({ data: [] }),
+                    period ? enrollmentService.getVerificationStatus(period.id) : Promise.resolve({ data: false })
+                ]);
+                if (typeof statusResponse.data !== "boolean") throw new Error("Respuesta de verificación no válida");
                 if (active) {
                     setSubjects(subjectsResponse.data);
                     setEnrollments(enrollmentsResponse.data);
                     setPeriods(periodsResponse.data);
-
-                    if (periodsResponse.data.length > 0) {
-                        setSelectedPeriodId(periodsResponse.data[0].id);
-                    }
+                    setSelectedPeriodId(period?.id || "");
+                    setSections(sectionsResponse.data);
+                    setVerified(statusResponse.data);
+                    setDataReady(true);
                 }
-
             } catch (err) {
-                console.error("Error loading enrollment data:", err);
-
-                if (active) {
-                    setError("No se pudo cargar la información de inscripción");
-                }
-
+                if (active) setError(studentErrorMessage(err,
+                    "No se pudo cargar la información de inscripción o consultar su verificación. Reintenta la carga."));
             } finally {
-                if (active) {
-                    setLoading(false);
-                }
+                if (active) setLoading(false);
             }
         };
-
         loadInitialData();
+        return () => { active = false; };
+    }, [retry]);
 
-        return () => {
-            active = false;
-        };
+    const refreshSelection = async () => {
+        const [enrollmentsResponse, sectionsResponse, statusResponse] = await Promise.all([
+            enrollmentService.getCurrentEnrollments(),
+            enrollmentService.getEligibleSections(selectedPeriodId),
+            enrollmentService.getVerificationStatus(selectedPeriodId)
+        ]);
+        if (typeof statusResponse.data !== "boolean") throw new Error("Respuesta de verificación no válida");
+        setEnrollments(enrollmentsResponse.data);
+        setSections(sectionsResponse.data);
+        setVerified(statusResponse.data);
+        setSelectionNoticeDismissed(false);
+    };
 
-    }, []);
-
-    // Load sections for the selected academic period
-    useEffect(() => {
-
-        if (!selectedPeriodId) {
-            setSections([]);
-            return;
-        }
-
-        let active = true;
-
-        const loadSections = async () => {
-
-            try {
-                const response =
-                    await enrollmentService.getSectionsByAcademicPeriod(
-                        selectedPeriodId
-                    );
-
-                if (active) {
-                    setSections(response.data);
-                    setError("");
-                }
-
-            } catch (err) {
-                console.error("Error loading sections:", err);
-
-                if (active) {
-                    setError("No se pudieron cargar las secciones");
-                }
-            }
-        };
-
-        loadSections();
-
-        return () => {
-            active = false;
-        };
-
-    }, [selectedPeriodId]);
-
-
-    const handleCancelEnrollment = async (enrollmentId) => {
-
-        setEnrollingSectionId(enrollmentId);
+    const changeSelection = async (id, cancel) => {
+        if (operationRef.current || !dataReady || !selectedPeriodId) return;
+        operationRef.current = true;
+        setEnrollingSectionId(id);
+        setCancellingId(cancel ? id : null);
         setError("");
         setSuccess("");
-
+        let saved = false;
         try {
-
-            // Cancel student enrollment
-            await enrollmentService.cancelEnrollment(enrollmentId);
-
-            // Refresh enrollments and sections
-            const [enrollmentsResponse, sectionsResponse] =
-                await Promise.all([
-                    enrollmentService.getCurrentEnrollments(),
-                    enrollmentService.getSectionsByAcademicPeriod(
-                        selectedPeriodId
-                    )
-                ]);
-
-            setEnrollments(enrollmentsResponse.data);
-            setSections(sectionsResponse.data);
-
-            setSuccess("Inscripción cancelada correctamente");
-
+            if (cancel) await enrollmentService.cancelEnrollment(id);
+            else await enrollmentService.createEnrollment(id);
+            saved = true;
+            setVerified(null);
+            await refreshSelection();
+            setSuccess(cancel ? "Inscripción cancelada correctamente. Cupo liberado."
+                : "Asignatura inscrita correctamente. Cupo reservado.");
         } catch (err) {
-
-            console.error("Error canceling enrollment:", err);
-
-            const message =
-                err.response?.data?.detail ||
-                err.response?.data?.message ||
-                "No se pudo cancelar la inscripción";
-
-            setError(message);
-
+            if (saved) {
+                setDataReady(false);
+                setError("El cambio se guardó, pero no se pudo actualizar la información. Recarga los datos antes de continuar.");
+            } else {
+                if (!err.response || err.response.status >= 500) {
+                    setDataReady(false);
+                    setVerified(null);
+                }
+                setError(studentErrorMessage(err, cancel ? "No se pudo cancelar la inscripción. Inténtalo nuevamente."
+                    : "No se pudo inscribir la asignatura. Inténtalo nuevamente."));
+            }
         } finally {
+            operationRef.current = false;
             setEnrollingSectionId(null);
+            setCancellingId(null);
+        }
+    };
+    const handleEnrollment = sectionId => changeSelection(sectionId, false);
+    const handleCancelEnrollment = enrollmentId => changeSelection(enrollmentId, true);
+
+    const handleVerifySelection = async () => {
+        if (operationRef.current || !dataReady || !selectedPeriodId) return;
+        operationRef.current = true;
+        setVerifying(true);
+        setError("");
+        setSuccess("");
+        let saved = false;
+        try {
+            await enrollmentService.verifySelection(selectedPeriodId);
+            saved = true;
+            setVerified(null);
+            await refreshSelection();
+            setSuccess("Verificación realizada. Se actualizó el estado de tu selección.");
+        } catch (err) {
+            if (saved) {
+                setDataReady(false);
+                setVerified(null);
+                setError("La verificación se guardó, pero no se pudo actualizar la información. Recarga los datos antes de continuar.");
+            } else {
+                if (!err.response || err.response.status >= 500) {
+                    setDataReady(false);
+                    setVerified(null);
+                }
+                setError(studentErrorMessage(err, "No se pudo verificar tu selección. Reintenta la operación; no fue posible confirmar el resultado."));
+            }
+        } finally {
+            operationRef.current = false;
+            setVerifying(false);
         }
     };
 
-
-
-    // Sections offered for subjects in the student's study plan
-    const offeredSections = sections.filter(section =>
-        section.status === "ACTIVA" &&
-        subjects.some(subject => subject.id === section.subjectId)
-    );
+    // The backend includes academically eligible sections and existing active enrollments.
+    const offeredSections = sections;
 
     // Active enrollments for the selected academic period
     const activeEnrollments = enrollments.filter(enrollment =>
         enrollment.status === "ACTIVO" &&
-        enrollment.academicPeriodId === selectedPeriodId
+        Number(enrollment.academicPeriodId) === Number(selectedPeriodId)
     );
 
     const enrolledCourses = activeEnrollments.map(enrollment => {
@@ -234,42 +229,70 @@ function StudentEnrollment() {
             </Typography>
 
             {error && (
-                <Alert severity="error" sx={{ mb: 2 }}>
+                <Alert severity="error" onClose={() => setError("")} sx={{ mb: 2 }}>
                     {error}
                 </Alert>
             )}
 
-            {success && (
-                <Alert severity="success" sx={{ mb: 2 }}>
-                    {success}
-                </Alert>
+            {!dataReady && (
+                <Button variant="outlined" onClick={() => setRetry(value => value + 1)} disabled={busy} sx={{ mb: 2 }}>
+                    Recargar datos
+                </Button>
             )}
 
-            {/* Academic period selector */}
-            {periods.length > 0 ? (
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 3 }}>
+            <Snackbar
+                open={Boolean(success)}
+                autoHideDuration={6000}
+                onClose={(_event, reason) => {
+                    if (reason !== "clickaway") setSuccess("");
+                }}
+                anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+            >
+                <Alert severity="success" onClose={() => setSuccess("")} sx={{ fontSize: "14px" }}>
+                    {success}
+                </Alert>
+            </Snackbar>
+
+
+            {/* Current academic period */}
+            {selectedPeriod ? (
+                <Box
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 2,
+                        mb: 3
+                    }}
+                >
                     <Typography variant="body2">
                         Período académico:
                     </Typography>
 
-                    <Select
-                        size="small"
-                        value={selectedPeriodId}
-                        onChange={event =>
-                            setSelectedPeriodId(event.target.value)
-                        }
-                        sx={{ minWidth: 160 }}
+                    <Typography
+                        variant="body2"
+                        sx={{ fontWeight: 600 }}
                     >
-                        {periods.map(period => (
-                            <MenuItem key={period.id} value={period.id}>
-                                {period.code}
-                            </MenuItem>
-                        ))}
-                    </Select>
+                        {selectedPeriod.code}
+                    </Typography>
                 </Box>
-            ) : (
+            ) : dataReady ? (
                 <Alert severity="info" sx={{ mb: 3 }}>
                     No hay períodos académicos abiertos para inscripción.
+                </Alert>
+            ) : null}
+
+
+            {selectedPeriod && dataReady && !busy && verified !== null && !selectionNoticeDismissed && (
+                <Alert
+                    severity={verified ? "success" : "info"}
+                    onClose={() => setSelectionNoticeDismissed(true)}
+                    sx={{ mb: 3 }}
+                >
+                    {activeEnrollments.length === 0
+                        ? "Comienza inscribiendo una asignatura de las secciones ofertadas."
+                        : verified
+                            ? "Selección verificada. Puedes seguir inscribiendo o cancelando mientras el período esté abierto; después deberás verificar nuevamente."
+                            : "Selección pendiente de verificación. Tus cupos ya están reservados. Verifica al completar entre 3 y 6 asignaturas, salvo que te falten menos de 3 para terminar el plan."}
                 </Alert>
             )}
 
@@ -277,7 +300,7 @@ function StudentEnrollment() {
             <Box
                 sx={{
                     display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
+                    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
                     gap: 3,
                     alignItems: "start"
                 }}
@@ -292,12 +315,7 @@ function StudentEnrollment() {
                         Secciones ofertadas
                     </Typography>
 
-                    <TableContainer
-                        sx={{
-                            border: "1px solid var(--border-color)",
-                            borderRadius: "3px"
-                        }}
-                    >
+                    <TableContainer>
                         <Table size="small">
                             <TableHead>
                                 <TableRow sx={{ bgcolor: "var(--curriculum-blue)" }}>
@@ -305,6 +323,7 @@ function StudentEnrollment() {
                                         "Código",
                                         "Asignatura",
                                         "Sección",
+                                        "Docente",
                                         "Cupos",
                                         "Bloques",
                                         "Acción"
@@ -330,8 +349,7 @@ function StudentEnrollment() {
                                     );
 
                                     const remaining =
-                                        section.capacity -
-                                        section.enrolledStudents;
+                                        Math.max(0, section.capacity - section.enrolledStudents);
 
                                     const currentEnrollment = activeEnrollments.find(
                                         enrollment => enrollment.sectionId === section.id
@@ -352,6 +370,10 @@ function StudentEnrollment() {
                                             </TableCell>
 
                                             <TableCell>
+                                                {section.teacherName?.trim() || "Sin asignar"}
+                                            </TableCell>
+
+                                            <TableCell>
                                                 {remaining}
                                             </TableCell>
 
@@ -368,15 +390,16 @@ function StudentEnrollment() {
                                                         onClick={() =>
                                                             handleCancelEnrollment(currentEnrollment.id)
                                                         }
-                                                        disabled={enrollingSectionId !== null}
+                                                        disabled={
+                                                            busy || !dataReady
+                                                        }
                                                         sx={{
                                                             color: "var(--curriculum-blue)",
                                                             borderColor: "var(--curriculum-blue)",
                                                             textTransform: "none",
-                                                            borderRadius: "3px"
                                                         }}
                                                     >
-                                                        {enrollingSectionId === currentEnrollment.id
+                                                        {cancellingId === currentEnrollment.id
                                                             ? "Cancelando..."
                                                             : "Cancelar"}
                                                     </Button>
@@ -387,18 +410,17 @@ function StudentEnrollment() {
                                                         onClick={() => handleEnrollment(section.id)}
                                                         disabled={
                                                             remaining <= 0 ||
-                                                            enrollingSectionId !== null
+                                                            busy || !dataReady
                                                         }
                                                         sx={{
                                                             backgroundColor: "var(--primary-color)",
                                                             textTransform: "none",
-                                                            borderRadius: "3px",
                                                             "&:hover": {
                                                                 backgroundColor: "var(--curriculum-blue)"
                                                             }
                                                         }}
                                                     >
-                                                        {enrollingSectionId === section.id
+                                                        {cancellingId === null && enrollingSectionId === section.id
                                                             ? "Inscribiendo..."
                                                             : "Inscribir"}
                                                     </Button>
@@ -411,8 +433,8 @@ function StudentEnrollment() {
 
                                 {offeredSections.length === 0 && (
                                     <TableRow>
-                                        <TableCell colSpan={6} align="center">
-                                            No hay secciones ofertadas para este plan.
+                                        <TableCell colSpan={7} align="center">
+                                            No hay secciones académicamente habilitadas para ti en este período.
                                         </TableCell>
                                     </TableRow>
                                 )}
@@ -429,7 +451,8 @@ function StudentEnrollment() {
                                 color: "var(--secondary-text-color)"
                             }}
                         >
-                            Los cupos se muestran según los datos actuales del sistema.
+                            Inscribir reserva un cupo inmediatamente; cancelar lo libera.
+                            Verificar no descuenta otro cupo y, si falla, conserva tus inscripciones.
                         </Typography>
                     )}
                 </Box>
@@ -443,12 +466,7 @@ function StudentEnrollment() {
                         Horario de inscripción
                     </Typography>
 
-                    <TableContainer
-                        sx={{
-                            border: "1px solid var(--border-color)",
-                            borderRadius: "3px"
-                        }}
-                    >
+                    <TableContainer>
                         <Table size="small" sx={{ tableLayout: "fixed" }}>
                             <TableHead>
                                 <TableRow>
@@ -510,7 +528,9 @@ function StudentEnrollment() {
                                                         bgcolor: course
                                                             ? "var(--in-progress-color)"
                                                             : "#FFFFFF",
-                                                        border:
+                                                        borderRight:
+                                                            "1px solid var(--border-color)",
+                                                        borderBottom:
                                                             "1px solid var(--border-color)"
                                                     }}
                                                 >
@@ -541,6 +561,29 @@ function StudentEnrollment() {
                     >
                         Asignaturas inscritas: {activeEnrollments.length}
                     </Typography>
+
+                    <Button
+                        variant="contained"
+                        onClick={handleVerifySelection}
+                        disabled={
+                            activeEnrollments.length === 0 ||
+                            busy || !dataReady || !selectedPeriodId
+                        }
+                        sx={{
+                            mt: 2,
+                            backgroundColor: "var(--primary-color)",
+                            textTransform: "none",
+                            "&:hover": {
+                                backgroundColor: "var(--curriculum-blue)"
+                            }
+                        }}
+                    >
+                        {verifying
+                            ? "Verificando..."
+                            : "Verificar selección"}
+                    </Button>
+
+
                 </Box>
             </Box>
         </Box>

@@ -4,6 +4,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 
 import AppHeader from "./AppHeader";
 import NavigationMenu from "./NavigationMenu";
+import { studentContentSx, studentNavigationSx } from "../styles/studentContent";
+import PropTypes from "prop-types";
 
 function AcademicLayout({
     name,
@@ -21,7 +23,8 @@ function AcademicLayout({
         <Box
             sx={{
                 minHeight: "100vh",
-                backgroundColor: "var(--background-color)"
+                backgroundColor: "var(--background-color)",
+                ...(role === "Estudiante" ? studentNavigationSx : {})
             }}
         >
             <AppHeader
@@ -42,7 +45,8 @@ function AcademicLayout({
                 sx={{
                     width: "100%",
                     px: 4,
-                    py: 3
+                    py: 3,
+                    ...(role === "Estudiante" ? studentContentSx : {})
                 }}
             >
                 {children}
@@ -50,5 +54,17 @@ function AcademicLayout({
         </Box>
     );
 }
+
+AcademicLayout.propTypes = {
+    name: PropTypes.string.isRequired,
+    role: PropTypes.string.isRequired,
+    items: PropTypes.arrayOf(PropTypes.shape({
+        label: PropTypes.string.isRequired,
+        path: PropTypes.string.isRequired
+    })).isRequired,
+    onProfile: PropTypes.func.isRequired,
+    onLogout: PropTypes.func.isRequired,
+    children: PropTypes.node.isRequired
+};
 
 export default AcademicLayout;

@@ -1,4 +1,4 @@
-import { Alert, Stack, Typography } from "@mui/material";
+import { Alert } from "@mui/material";
 
 import {
     Navigate,
@@ -16,6 +16,7 @@ import AcademicView from "./components/AcademicView";
 import StudentStudyPlan from "./pages/student/StudentStudyPlan";
 import StudentCourses from "./pages/student/StudentCourses";
 import StudentEnrollment from "./pages/student/StudentEnrollment";
+import StudentAcademicRecords from "./pages/student/StudentAcademicRecords";
 
 // Navigation options for each role
 const navigationItems = {
@@ -30,8 +31,9 @@ const navigationItems = {
     STUDENT: [
         { label: "Inscripción", path: "/student/enrollments" },
         { label: "Plan de estudio", path: "/student/study-plan" },
-        { label: "Calificaciones", path: "/student/grades" },
-        { label: "Mis cursos", path: "/student/courses" }
+        { label: "Mis calificaciones", path: "/student/grades" },
+        { label: "Mis cursos", path: "/student/courses" },
+        { label: "Historial académico", path: "/student/history" }
     ]
 };
 
@@ -232,19 +234,7 @@ function App() {
 
                     <Route
                         path="/student/history"
-                        element={
-                            <AcademicView
-                                title="Mi historial académico"
-                                endpoint="/students/me/academic-history"
-                                columns={[
-                                    ["subjectCode", "Código"],
-                                    ["subjectName", "Asignatura"],
-                                    ["academicPeriodCode", "Período"],
-                                    ["finalGrade", "Nota"],
-                                    ["result", "Resultado"]
-                                ]}
-                            />
-                        }
+                        element={<StudentAcademicRecords />}
                     />
 
                     <Route
@@ -255,19 +245,7 @@ function App() {
                     
                     <Route
                         path="/student/grades"
-                        element={
-                            <AcademicView
-                                title="Mis calificaciones"
-                                endpoint="/students/me/academic-history"
-                                columns={[
-                                    ["subjectCode", "Código"],
-                                    ["subjectName", "Asignatura"],
-                                    ["academicPeriodCode", "Período académico"],
-                                    ["finalGrade", "Nota final"],
-                                    ["result", "Resultado"]
-                                ]}
-                            />
-                        }
+                        element={<StudentAcademicRecords gradesOnly />}
                     />
 
 

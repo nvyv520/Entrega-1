@@ -80,9 +80,9 @@ class SecurityAuthorizationTests {
                 "/api/enrollments/student/1", "/api/sections/me", "/api/grades/me/sections/7"}) {
             mvc.perform(get(path).with(account("STUDENT"))).andExpect(status().isForbidden());
         }
-        mvc.perform(patch("/api/enrollments/me/academic-period/4/confirm").with(account("STUDENT")))
+        mvc.perform(post("/api/enrollments/me/academic-period/4/verify").with(account("STUDENT")))
                 .andExpect(status().isNoContent());
-        verify(context.getBean(EnrollmentService.class)).confirmCurrentStudentEnrollmentSelection("account-subject", 4L);
+        verify(context.getBean(EnrollmentService.class)).verifyCurrentStudentSelection("account-subject", 4L);
         mvc.perform(patch("/api/enrollments/student/8/academic-period/4/confirm").with(account("STUDENT")))
                 .andExpect(status().isForbidden());
         mvc.perform(patch("/api/academic-periods/4/close").with(account("STUDENT")))

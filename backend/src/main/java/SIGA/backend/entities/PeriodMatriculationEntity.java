@@ -26,7 +26,7 @@ public class PeriodMatriculationEntity {
     @JoinColumn (name = "academic_period_id", nullable = false)
     private AcademicPeriodEntity academicPeriod;
 
-    // true if student confirmed subject selection
+    // Selection verified; enrollment changes reset this flag within the same transaction.
     @Column(nullable = false)
     private Boolean enrollmentConfirmed = false;
 }
