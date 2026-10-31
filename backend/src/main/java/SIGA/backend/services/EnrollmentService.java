@@ -18,7 +18,6 @@ import SIGA.backend.repositories.SectionRepository;
 import SIGA.backend.repositories.PeriodMatriculationRepository;
 import SIGA.backend.repositories.GradeRepository;
 import SIGA.backend.repositories.SubjectRepository;
-import SIGA.backend.repositories.AcademicPeriodRepository;
 
 import SIGA.backend.dtos.EnrollmentRequestDTO;
 import SIGA.backend.dtos.EnrollmentResponseDTO;
@@ -611,7 +610,7 @@ public class EnrollmentService {
         StudentEntity student = studentRepository.findByKeycloakSubject(keycloakSubject).orElseThrow(() -> 
                                 new ResponseStatusException(HttpStatus.NOT_FOUND, "No existe un estudiante asociado a esta cuenta"));
 
-        confirmEnrollmentSelection(student.getId(), periodId, false);
+        confirmEnrollmentSelection(student.getId(), periodId, true);
     }
 
 

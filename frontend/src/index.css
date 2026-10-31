@@ -1,14 +1,52 @@
 :root {
-  font-family: Roboto, Arial, sans-serif;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+    font-family: Roboto, Arial, sans-serif;
+
+    /* Main */
+    --primary-color: #6C85BD;
+    --curriculum-blue: #526FA8;
+
+    /* Background and text */
+    --background-color: #FFFFFF;
+    --text-color: #000000;
+    --secondary-text-color: #65738B;
+
+    /* Borders */
+    --border-color: #D6DFEC;
+    --border-radius: 2px;
+
+    /* Academic status colors */
+    --approved-color: #a1f7c2;
+    --in-progress-color: #a2c5f4;
+    --eligible-color: #f8e3a0;
+    --failed-color: #f8a2aa;
+    --blocked-color: #E9EDF2;
+
+    color: var(--text-color);
+    background-color: var(--background-color);
+
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+}
+
+* {
+    box-sizing: border-box;
 }
 
 body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-  background-color: #f4f6f8;
+    margin: 0;
+    min-width: 1000px;
+    min-height: 100vh;
+    background-color: var(--background-color);
+}
+
+#root {
+    min-height: 100vh;
+}
+
+button,
+input,
+select,
+textarea {
+    font-family: inherit;
 }
