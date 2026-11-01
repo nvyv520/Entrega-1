@@ -17,11 +17,24 @@ import StudentStudyPlan from "./pages/student/StudentStudyPlan";
 import StudentCourses from "./pages/student/StudentCourses";
 import StudentEnrollment from "./pages/student/StudentEnrollment";
 import StudentAcademicRecords from "./pages/student/StudentAcademicRecords";
+import AdminCareers from "./pages/admin/AdminCareers";
+import AdminSubjects from "./pages/admin/AdminSubjects";
+import AdminTeachers from "./pages/admin/AdminTeachers";
+import AdminStudents from "./pages/admin/AdminStudents";
+import AdminPeriods from "./pages/admin/AdminPeriods";
+import AdminSections from "./pages/admin/AdminSections";
+import AdminEnrollments from "./pages/admin/AdminEnrollments";
 
 // Navigation options for each role
 const navigationItems = {
     ADMIN: [
-        { label: "Administración", path: "/admin" }
+        { label: "Estudiantes", path: "/admin/students" },
+        { label: "Docentes", path: "/admin/teachers" },
+        { label: "Carreras y planes", path: "/admin" },
+        { label: "Asignaturas", path: "/admin/subjects" },
+        { label: "Períodos", path: "/admin/periods" },
+        { label: "Secciones", path: "/admin/sections" },
+        { label: "Inscripciones", path: "/admin/enrollments" }
     ],
     TEACHER: [
         { label: "Mis secciones", path: "/teacher" },
@@ -153,18 +166,14 @@ function App() {
                 <Route element={<ProtectedRoute roles={["ADMIN"]} />}>
                     <Route
                         path="/admin"
-                        element={
-                            <AcademicView
-                                title="Carreras"
-                                endpoint="/careers"
-                                columns={[
-                                    ["code", "Código"],
-                                    ["name", "Carrera"],
-                                    ["status", "Estado"]
-                                ]}
-                            />
-                        }
+                        element={<AdminCareers />}
                     />
+                    <Route path="/admin/subjects" element={<AdminSubjects />} />
+                    <Route path="/admin/teachers" element={<AdminTeachers />} />
+                    <Route path="/admin/students" element={<AdminStudents />} />
+                    <Route path="/admin/periods" element={<AdminPeriods />} />
+                    <Route path="/admin/sections" element={<AdminSections />} />
+                    <Route path="/admin/enrollments" element={<AdminEnrollments />} />
                 </Route>
 
                 {/* Teacher */}

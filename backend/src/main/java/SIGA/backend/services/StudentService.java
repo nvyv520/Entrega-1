@@ -147,11 +147,11 @@ public class StudentService {
     @Transactional 
     public StudentResponseDTO createStudent(StudentRequestDTO student) {
 
-        String rut = student.getRut().trim();
-        String email = student.getEmail().trim();
+        String rut = AcademicPersonValidation.normalizeRut(student.getRut(), null);
+        String email = AcademicPersonValidation.normalizeEmail(student.getEmail(), null);
 
         // ver si ya existe el rut
-        if(studentRepository.existsByRut(rut)) {
+        if(!studentRepository.findByNormalizedRut(AcademicPersonValidation.compactRut(rut)).isEmpty()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un estudiante con ese RUT");
         }
 
@@ -175,8 +175,8 @@ public class StudentService {
         // create student
         StudentEntity newStudent = new StudentEntity();
         newStudent.setRut(rut);
-        newStudent.setFirstName(student.getFirstName().trim());
-        newStudent.setLastName(student.getLastName().trim());
+        newStudent.setFirstName(AcademicPersonValidation.normalizeName(student.getFirstName(), null));
+        newStudent.setLastName(AcademicPersonValidation.normalizeName(student.getLastName(), null));
         newStudent.setEmail(email);
         newStudent.setStatus(StudentStatus.REGULAR);
         newStudent.setCareer(career);
@@ -193,16 +193,15 @@ public class StudentService {
 
         StudentEntity current = findStudentById(id);
 
-        String rut = student.getRut().trim();
-        String email = student.getEmail().trim();
+        String rut = AcademicPersonValidation.normalizeRut(student.getRut(), current.getRut());
+        String email = AcademicPersonValidation.normalizeEmail(student.getEmail(), current.getEmail());
         Long careerId = student.getCareerId();
 
         // ver si ya existe el rut 
-        studentRepository.findByRut(rut).ifPresent(existing -> {
-            if (!existing.getId().equals(id)) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un estudiante con ese RUT");
-            }
-        });
+        if (studentRepository.findByNormalizedRut(AcademicPersonValidation.compactRut(rut)).stream()
+                .anyMatch(existing -> !existing.getId().equals(id))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un estudiante con ese RUT");
+        }
 
         // ver si ya existe el correo
         studentRepository.findByEmail(email).ifPresent(existing -> {
@@ -252,8 +251,8 @@ public class StudentService {
 
         // actualizar la informacion del estudiante
         current.setRut(rut);
-        current.setFirstName(student.getFirstName().trim());
-        current.setLastName(student.getLastName().trim());
+        current.setFirstName(AcademicPersonValidation.normalizeName(student.getFirstName(), current.getFirstName()));
+        current.setLastName(AcademicPersonValidation.normalizeName(student.getLastName(), current.getLastName()));
         current.setEmail(email);
         current.setCareer(career);
         current.setStudyPlan(studyPlan);

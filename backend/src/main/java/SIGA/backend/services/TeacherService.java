@@ -88,11 +88,11 @@ public class TeacherService {
     @Transactional 
     public TeacherResponseDTO createTeacher(TeacherRequestDTO teacher) {
 
-        String rut = teacher.getRut().trim();
-        String email = teacher.getEmail().trim();
+        String rut = AcademicPersonValidation.normalizeRut(teacher.getRut(), null);
+        String email = AcademicPersonValidation.normalizeEmail(teacher.getEmail(), null);
 
         // ver si esta duplicado el rut
-        if (teacherRepository.existsByRut(rut)) {
+        if (!teacherRepository.findByNormalizedRut(AcademicPersonValidation.compactRut(rut)).isEmpty()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un docente con ese RUT");
         }
 
@@ -103,9 +103,9 @@ public class TeacherService {
 
         // create teacher
         TeacherEntity newTeacher = new TeacherEntity();
-        newTeacher.setRut(rut.trim());
-        newTeacher.setFirstName(teacher.getFirstName().trim());
-        newTeacher.setLastName(teacher.getLastName().trim());
+        newTeacher.setRut(rut);
+        newTeacher.setFirstName(AcademicPersonValidation.normalizeName(teacher.getFirstName(), null));
+        newTeacher.setLastName(AcademicPersonValidation.normalizeName(teacher.getLastName(), null));
         newTeacher.setEmail(email);
         newTeacher.setProfessionalTitle(teacher.getProfessionalTitle().trim());
         newTeacher.setAcademicDegree(teacher.getAcademicDegree().trim());
@@ -122,14 +122,14 @@ public class TeacherService {
 
         TeacherEntity current = findTeacherById(id);
 
-        String rut = teacher.getRut().trim();
-        String email = teacher.getEmail().trim();
+        String rut = AcademicPersonValidation.normalizeRut(teacher.getRut(), current.getRut());
+        String email = AcademicPersonValidation.normalizeEmail(teacher.getEmail(), current.getEmail());
 
         // ver si esta duplicado el rut
-        teacherRepository.findByRut(rut).ifPresent(existing -> {
-            if (!existing.getId().equals(id)) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un docente con ese RUT");}
-        });
+        if (teacherRepository.findByNormalizedRut(AcademicPersonValidation.compactRut(rut)).stream()
+                .anyMatch(existing -> !existing.getId().equals(id))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un docente con ese RUT");
+        }
 
         // check duplicate email
         teacherRepository.findByEmail(email).ifPresent(existing -> {
@@ -138,9 +138,9 @@ public class TeacherService {
         });
 
         // actualizar
-        current.setRut(rut.trim());
-        current.setFirstName(teacher.getFirstName().trim());
-        current.setLastName(teacher.getLastName().trim());
+        current.setRut(rut);
+        current.setFirstName(AcademicPersonValidation.normalizeName(teacher.getFirstName(), current.getFirstName()));
+        current.setLastName(AcademicPersonValidation.normalizeName(teacher.getLastName(), current.getLastName()));
         current.setEmail(email);
         current.setProfessionalTitle(teacher.getProfessionalTitle().trim());
         current.setAcademicDegree(teacher.getAcademicDegree().trim());

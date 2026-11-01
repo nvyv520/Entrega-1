@@ -5,6 +5,8 @@ import SIGA.backend.entities.StudentStatus;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -13,6 +15,10 @@ import java.util.Optional;
 public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
     // find by rut
     Optional<StudentEntity> findByRut(String rut);
+
+    // Compare existing formats without rewriting stored identifiers.
+    @Query("select person from StudentEntity person where upper(replace(replace(trim(person.rut), '.', ''), '-', '')) = :rut")
+    List<StudentEntity> findByNormalizedRut(@Param("rut") String rut);
 
     // find by email
     Optional<StudentEntity> findByEmail(String email);

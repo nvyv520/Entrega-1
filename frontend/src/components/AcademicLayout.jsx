@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import AppHeader from "./AppHeader";
 import NavigationMenu from "./NavigationMenu";
 import { studentContentSx, studentNavigationSx } from "../styles/studentContent";
+import { adminContentSx } from "../styles/adminContent";
 import PropTypes from "prop-types";
 
 function AcademicLayout({
@@ -24,7 +25,7 @@ function AcademicLayout({
             sx={{
                 minHeight: "100vh",
                 backgroundColor: "var(--background-color)",
-                ...(role === "Estudiante" ? studentNavigationSx : {})
+                ...(["Estudiante", "Administrador"].includes(role) ? studentNavigationSx : {})
             }}
         >
             <AppHeader
@@ -46,7 +47,7 @@ function AcademicLayout({
                     width: "100%",
                     px: 4,
                     py: 3,
-                    ...(role === "Estudiante" ? studentContentSx : {})
+                    ...(role === "Administrador" ? adminContentSx : role === "Estudiante" ? studentContentSx : {})
                 }}
             >
                 {children}
