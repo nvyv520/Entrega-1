@@ -8,10 +8,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 
-import SIGA.backend.entities.Status;
+import SIGA.backend.entities.TeacherStatus;
 
 import SIGA.backend.dtos.TeacherRequestDTO;
 import SIGA.backend.dtos.TeacherResponseDTO;
+import SIGA.backend.dtos.TeacherRegistrationResponseDTO;
 
 import SIGA.backend.services.TeacherService;
 
@@ -87,7 +88,7 @@ public class TeacherController {
     @GetMapping ("/status/{status}")
     @Operation (summary = "Get teachers by status")
     @ApiResponse (responseCode = "200", description = "Teachers retrieved successfully")
-    public ResponseEntity<List<TeacherResponseDTO>> getTeachersByStatus(@PathVariable Status status) {
+    public ResponseEntity<List<TeacherResponseDTO>> getTeachersByStatus(@PathVariable TeacherStatus status) {
         List<TeacherResponseDTO> teachers = teacherService.getTeachersByStatus(status);
         return ResponseEntity.ok(teachers);
     }
@@ -113,19 +114,24 @@ public class TeacherController {
     }
 
 
+
     // create teacher
-    @PostMapping 
-    @Operation (summary = "create a new teacher")
-    @ApiResponses ({
-        @ApiResponse (responseCode = "201", description = "Teacher created successfully"),
-        @ApiResponse (responseCode = "400", description = "Invalid teacher data"),
-        @ApiResponse (responseCode = "409", description = "Teacher already exist")
+    @PostMapping
+    @Operation(summary = "Create a new teacher")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Teacher created successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid teacher data"),
+        @ApiResponse(responseCode = "409", description = "Teacher already exists"),
+        @ApiResponse(responseCode = "502", description = "Keycloak service unavailable")
     })
-    public ResponseEntity<TeacherResponseDTO> createTeacher(@Valid @RequestBody TeacherRequestDTO teacher) {
-        TeacherResponseDTO newTeacher = teacherService.createTeacher(teacher);
-        URI location = URI.create("/api/teachers/" + newTeacher.getId());
-        return ResponseEntity.created(location).body(newTeacher);
+    public ResponseEntity<TeacherRegistrationResponseDTO> createTeacher(@Valid @RequestBody TeacherRequestDTO teacher) {
+        TeacherRegistrationResponseDTO newTeacher = teacherService.createTeacher(teacher);
+        URI location = URI.create("/api/teachers/" + newTeacher.getTeacher().getId());
+        return ResponseEntity.created(location)
+                .header("Cache-Control", "no-store")
+                .body(newTeacher);
     }
+
 
 
     // update teacher
@@ -152,7 +158,7 @@ public class TeacherController {
         @ApiResponse (responseCode = "404", description = "Teacher not found"),
         @ApiResponse (responseCode = "409", description = "Teacher has active sections")
     })
-    public ResponseEntity<TeacherResponseDTO> updateTeacherStatus(@PathVariable Long id, @RequestParam Status status) {
+    public ResponseEntity<TeacherResponseDTO> updateTeacherStatus(@PathVariable Long id, @RequestParam TeacherStatus status) {
         TeacherResponseDTO updated = teacherService.updateTeacherStatus(id, status);
         return ResponseEntity.ok(updated);
     }

@@ -20,7 +20,7 @@ public interface PeriodMatriculationRepository extends JpaRepository<PeriodMatri
     // find by student and academic period
     Optional<PeriodMatriculationEntity> findByStudentIdAndAcademicPeriodId(Long studentId, Long academicPeriodId);
 
-    // ver si existe por estudiante y periodo academico
+    // Checks if a matriculation exists for the student and academic period
     boolean existsByStudentIdAndAcademicPeriodId(Long studentId, Long academicPeriodId);
 
     // check if student has academic period matriculations

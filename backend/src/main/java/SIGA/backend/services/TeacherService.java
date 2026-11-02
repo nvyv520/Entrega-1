@@ -9,6 +9,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import SIGA.backend.entities.AcademicPeriodStatus;
 import SIGA.backend.entities.Status;
+import SIGA.backend.entities.TeacherStatus;
 import SIGA.backend.entities.TeacherEntity;
 
 import SIGA.backend.repositories.SectionRepository;
@@ -18,6 +19,10 @@ import SIGA.backend.repositories.TeacherRepository;
 import SIGA.backend.dtos.TeacherRequestDTO;
 import SIGA.backend.dtos.TeacherResponseDTO;
 import lombok.RequiredArgsConstructor;
+import SIGA.backend.dtos.TeacherRegistrationResponseDTO;
+
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 
 @Service 
@@ -63,8 +68,8 @@ public class TeacherService {
 
     // get teachers by status
     @Transactional (readOnly = true)
-    public List<TeacherResponseDTO> getTeachersByStatus(Status status) {
-        List<TeacherEntity> teachers =  teacherRepository.findByStatus(status);
+    public List<TeacherResponseDTO> getTeachersByStatus(TeacherStatus status) {
+        List<TeacherEntity> teachers =  teacherRepository.findByStatus(status == TeacherStatus.ACTIVO ? Status.ACTIVA : Status.INACTIVA);
         return teachers.stream().map(TeacherResponseDTO::new).toList();
     }
 
@@ -84,48 +89,84 @@ public class TeacherService {
     }
 
 
+
     // create teacher
-    @Transactional 
-    public TeacherResponseDTO createTeacher(TeacherRequestDTO teacher) {
+    @Transactional
+    public TeacherRegistrationResponseDTO createTeacher(TeacherRequestDTO teacher) {
 
         String rut = AcademicPersonValidation.normalizeRut(teacher.getRut(), null);
         String email = AcademicPersonValidation.normalizeEmail(teacher.getEmail(), null);
 
-        // ver si esta duplicado el rut
+        // check duplicate rut
         if (!teacherRepository.findByNormalizedRut(AcademicPersonValidation.compactRut(rut)).isEmpty()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un docente con ese RUT");
         }
 
-        // ver si esta duplicado el email
+        // check duplicate email
         if (teacherRepository.existsByEmail(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un docente con ese correo");
         }
 
+        String firstName = AcademicPersonValidation.normalizeName(teacher.getFirstName(), null);
+        String lastName = AcademicPersonValidation.normalizeName(teacher.getLastName(), null);
+        String professionalTitle = teacher.getProfessionalTitle().trim();
+        String academicDegree = teacher.getAcademicDegree().trim();
+
+        // create Keycloak account
+        KeycloakAdminService.CreatedUser keycloakUser =
+                keycloakAdminService.createUser(email, firstName, lastName, "TEACHER");
+
+        // remove new account if the transaction fails
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == TransactionSynchronization.STATUS_ROLLED_BACK) {
+                    try {
+                        keycloakAdminService.deleteCreatedUser(keycloakUser);
+                    } catch (Exception exception) {
+                        org.slf4j.LoggerFactory.getLogger(TeacherService.class)
+                                .error("Failed to clean up Keycloak account {}; manual reconciliation required", keycloakUser.keycloakSubject());
+                    }
+                } else if (status == TransactionSynchronization.STATUS_UNKNOWN) {
+                    org.slf4j.LoggerFactory.getLogger(TeacherService.class)
+                            .error("Uncertain database transaction for Keycloak account {}; manual reconciliation required", keycloakUser.keycloakSubject());
+                }
+            }
+        });
+
         // create teacher
         TeacherEntity newTeacher = new TeacherEntity();
         newTeacher.setRut(rut);
-        newTeacher.setFirstName(AcademicPersonValidation.normalizeName(teacher.getFirstName(), null));
-        newTeacher.setLastName(AcademicPersonValidation.normalizeName(teacher.getLastName(), null));
+        newTeacher.setFirstName(firstName);
+        newTeacher.setLastName(lastName);
         newTeacher.setEmail(email);
-        newTeacher.setProfessionalTitle(teacher.getProfessionalTitle().trim());
-        newTeacher.setAcademicDegree(teacher.getAcademicDegree().trim());
+        newTeacher.setProfessionalTitle(professionalTitle);
+        newTeacher.setAcademicDegree(academicDegree);
         newTeacher.setStatus(Status.ACTIVA);
+        newTeacher.setKeycloakSubject(keycloakUser.keycloakSubject());
 
-        TeacherEntity saved = teacherRepository.save(newTeacher);
-        return new TeacherResponseDTO(saved);
+        TeacherEntity saved = teacherRepository.saveAndFlush(newTeacher);
+
+        return new TeacherRegistrationResponseDTO(
+                new TeacherResponseDTO(saved),
+                keycloakUser.username(),
+                keycloakUser.temporaryPassword()
+        );
     }
+
 
 
     // update teacher
     @Transactional 
     public TeacherResponseDTO updateTeacher(Long id, TeacherRequestDTO teacher) {
 
-        TeacherEntity current = findTeacherById(id);
+        TeacherEntity current = teacherRepository.findByIdForUpdate(id).orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Docente no encontrado"));
 
         String rut = AcademicPersonValidation.normalizeRut(teacher.getRut(), current.getRut());
         String email = AcademicPersonValidation.normalizeEmail(teacher.getEmail(), current.getEmail());
 
-        // ver si esta duplicado el rut
+        // Checks for a duplicate RUN
         if (teacherRepository.findByNormalizedRut(AcademicPersonValidation.compactRut(rut)).stream()
                 .anyMatch(existing -> !existing.getId().equals(id))) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un docente con ese RUT");
@@ -137,10 +178,14 @@ public class TeacherService {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un docente con ese correo");}
         });
 
-        // actualizar
+        // Updates the teacher information
+        String firstName = AcademicPersonValidation.normalizeName(teacher.getFirstName(), current.getFirstName());
+        String lastName = AcademicPersonValidation.normalizeName(teacher.getLastName(), current.getLastName());
+        keycloakAdminService.updateUserIdentity(current.getKeycloakSubject(), "TEACHER", current.getEmail(),
+                current.getFirstName(), current.getLastName(), email, firstName, lastName);
         current.setRut(rut);
-        current.setFirstName(AcademicPersonValidation.normalizeName(teacher.getFirstName(), current.getFirstName()));
-        current.setLastName(AcademicPersonValidation.normalizeName(teacher.getLastName(), current.getLastName()));
+        current.setFirstName(firstName);
+        current.setLastName(lastName);
         current.setEmail(email);
         current.setProfessionalTitle(teacher.getProfessionalTitle().trim());
         current.setAcademicDegree(teacher.getAcademicDegree().trim());
@@ -152,22 +197,22 @@ public class TeacherService {
 
     // update teacher status
     @Transactional 
-    public TeacherResponseDTO updateTeacherStatus(Long id, Status status) {
+    public TeacherResponseDTO updateTeacherStatus(Long id, TeacherStatus status) {
 
         TeacherEntity teacher = findTeacherById(id);
 
-        // validar estado
+        // Validates the status
         if (status == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "EL estado es obligatorio");
         }
 
-        // ver secciones activas del docente
-        if (status == Status.INACTIVA && sectionRepository.existsByTeacherIdAndAcademicPeriod_Status(id, AcademicPeriodStatus.ABIERTO)) {
+        // Checks the teacher sections in open periods
+        if (status == TeacherStatus.INACTIVO && sectionRepository.existsByTeacherIdAndAcademicPeriod_Status(id, AcademicPeriodStatus.ABIERTO)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puedde cambiar el estado, ya que cuenta con seccione activas");
         }
 
         // update 
-        teacher.setStatus(status);
+        teacher.setStatus(status == TeacherStatus.ACTIVO ? Status.ACTIVA : Status.INACTIVA);
 
         TeacherEntity saved = teacherRepository.save(teacher);
         return new TeacherResponseDTO(saved);
@@ -181,7 +226,7 @@ public class TeacherService {
         
         TeacherEntity teacher = findTeacherById(id);
 
-        // revisar secciones asociadas
+        // Checks for associated sections
         if (sectionRepository.existsByTeacherId(id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puede eliminar un docente con secciones asociadas");
         }
@@ -200,22 +245,27 @@ public class TeacherService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El identificador de Keycloak es obligatorio");
         }
 
-        String subject = keycloakSubject.trim();
+        String subject;
+        try {
+            subject = java.util.UUID.fromString(keycloakSubject.trim()).toString();
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Identificador de Keycloak inválido");
+        }
 
-        // verificar que la cuenta no este asociada a otro docente
+        // Checks that the account is not linked to another teacher
         teacherRepository.findByKeycloakSubject(subject).ifPresent(existing -> {
             if (!existing.getId().equals(id)) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "La cuenta de Keycloak ya esta asociada a otro docente");
             }
         });
 
-        // no permitir reemplazar una cuenta existente
+        // Prevents replacing an existing account
         if (teacher.getKeycloakSubject() != null
                 && !teacher.getKeycloakSubject().equals(subject)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El docente ya tiene una cuenta de Keycloak asociada");
         }
 
-        // verificar que la cuenta no pertenezca a un estudiante
+        // Checks that the account does not belong to a student
         if (studentRepository.findByKeycloakSubject(subject).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "La cuenta de Keycloak ya esta asociada a un estudiante");
         }
@@ -223,7 +273,7 @@ public class TeacherService {
         // validate Keycloak user and role
         keycloakAdminService.validateUserRole(subject, "TEACHER");
 
-        // vincular cuenta
+        // Links the account
         teacher.setKeycloakSubject(subject);
 
         TeacherEntity saved = teacherRepository.save(teacher);

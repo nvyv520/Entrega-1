@@ -50,6 +50,7 @@ class GradeAuthorizationTests {
         section = new SectionEntity();
         section.setId(10L);
         section.setTeacher(assigned);
+        section.setStatus(Status.ACTIVA);
         when(sections.findById(10L)).thenReturn(Optional.of(section));
         period = new AcademicPeriodEntity();
         period.setId(3L);
@@ -115,30 +116,31 @@ class GradeAuthorizationTests {
     }
 
     @Test
-    void assignedTeacherCanWriteAndClosedPeriodBlocksEvenAdmin() {
+    void assignedTeacherCanWriteAndClosedPeriodBlocksTeacher() {
         when(grades.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         assertEquals(new BigDecimal("5.0"), service.createGrade(request).getFinalGrade());
         period.setStatus(AcademicPeriodStatus.CERRADO);
         GradeEntity current = new GradeEntity();
         current.setEnrollment(enrollment);
         when(grades.findById(1L)).thenReturn(Optional.of(current));
-        for (String role : List.of("TEACHER", "ADMIN")) {
-            account(role);
-            assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
-                    () -> service.createGrade(request)).getStatusCode());
-            assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
-                    () -> service.updateGrade(1L, request)).getStatusCode());
-        }
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> service.createGrade(request)).getStatusCode());
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> service.updateGrade(1L, request)).getStatusCode());
     }
 
     @Test
-    void studentCannotWriteAndAdminKeepsExistingGradePermission() {
-        account("STUDENT");
-        assertEquals(HttpStatus.FORBIDDEN, assertThrows(ResponseStatusException.class,
-                () -> service.createGrade(request)).getStatusCode());
-        otherTeacher();
-        account("ADMIN");
-        when(grades.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        assertEquals(GradeResult.APROBADO, service.createGrade(request).getResult());
+    void studentAndAdminCannotCreateOrUpdateGrades() {
+        GradeEntity current = new GradeEntity();
+        current.setEnrollment(enrollment);
+        when(grades.findById(1L)).thenReturn(Optional.of(current));
+        for (String role : List.of("STUDENT", "ADMIN")) {
+            account(role);
+            assertEquals(HttpStatus.FORBIDDEN, assertThrows(ResponseStatusException.class,
+                    () -> service.createGrade(request)).getStatusCode());
+            assertEquals(HttpStatus.FORBIDDEN, assertThrows(ResponseStatusException.class,
+                    () -> service.updateGrade(1L, request)).getStatusCode());
+        }
+        verify(grades, never()).save(any());
     }
 }

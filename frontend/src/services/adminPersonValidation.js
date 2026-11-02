@@ -22,11 +22,15 @@ export function normalizePersonName(value) {
 export function normalizePersonField(field, value) {
     if (field === "rut") return normalizeRun(value);
     if (["firstName", "lastName"].includes(field)) {
+        if (value !== value.trim() || !/^\p{L}[\p{L}\p{M}]*(?:[ '’ʼ-]\p{L}[\p{L}\p{M}]*)*$/u.test(value)) {
+            throw new Error("El nombre o apellido solo puede contener letras y separadores válidos, sin espacios al principio o final.");
+        }
         const name = normalizePersonName(value);
         if (!name) throw new Error("El nombre y apellido son obligatorios.");
         return name;
     }
     const text = field === "email" ? value : value.trim();
+    if (!text) throw new Error("El campo es obligatorio.");
     if (field === "email") {
         const parts = text.split("@");
         const labels = parts.length === 2 ? parts[1].split(".") : [];
@@ -40,6 +44,17 @@ export function normalizePersonField(field, value) {
     return text;
 }
 
-export function preparePersonFields(form, fields) {
-    return Object.fromEntries(fields.map(field => [field, normalizePersonField(field, form[field])]));
+export function preparePersonFields(form, fields, setFieldErrors) {
+    const errors = {};
+    const data = {};
+    fields.forEach(field => {
+        try {
+            data[field] = normalizePersonField(field, form[field]);
+        } catch (error) {
+            errors[field] = error.message;
+        }
+    });
+    setFieldErrors(errors);
+    if (Object.keys(errors).length) throw new Error(Object.values(errors)[0]);
+    return data;
 }

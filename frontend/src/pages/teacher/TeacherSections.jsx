@@ -17,7 +17,7 @@ function TeacherSections() {
         setParams(next, { replace: true });
     };
     const periods = [...new Map(catalog.sections.map(section => [section.academicPeriodId, section.periodCode])).entries()];
-    const statuses = [...new Set(catalog.sections.map(section => section.status))];
+    const statuses = ["ACTIVA", "INACTIVA"];
     const rows = catalog.sections.filter(section => (!periodId || String(section.academicPeriodId) === periodId)
         && (!status || section.status === status) && teacherMatchesSearch(section, search, ["subjectCode", "subjectName"]));
     const returnTo = location.pathname + location.search;
@@ -37,7 +37,6 @@ function TeacherSections() {
         <TeacherTable title="Mis secciones" records={{ ...catalog, rows }} emptyMessage={catalog.sections.length ? "No se encontraron secciones con los filtros seleccionados." : "No tienes secciones asignadas."} columns={[
             ["subjectCode", "Código"], ["subjectName", "Asignatura"], ["periodCode", "Período"], ["id", "Sección"], ["blocks", "Bloques"],
             ["capacity", "Capacidad"], ["enrolledStudents", "Inscritos"], ["status", "Estado de sección"],
-            ["periodStatus", "Estado del período", row => row.periodStatus === "CERRADO" ? "Período cerrado" : row.periodStatus === "ABIERTO" ? "Período abierto" : "No disponible"],
             ["students", "Estudiantes", row => <Button component={RouterLink} to={`/teacher/sections/${row.id}/students`} state={{ returnTo }}>Ver</Button>],
             ["grades", "Calificaciones", row => <Button component={RouterLink} to={`/teacher/sections/${row.id}/grades`} state={{ returnTo }}>Ver</Button>]
         ]} />

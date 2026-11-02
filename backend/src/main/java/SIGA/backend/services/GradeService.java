@@ -120,14 +120,14 @@ public class GradeService {
         // validate final grade
         BigDecimal finalGrade = grade.getFinalGrade();
 
-        // si la nota no esta en el rango 
+        // Checks if the grade is within the allowed range 
         if (finalGrade == null || 
             finalGrade.compareTo(new BigDecimal("1.0")) < 0 ||
             finalGrade.compareTo(new BigDecimal("7.0")) > 0) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La nota debe estar entre 1.0 y 7.0");
         }
 
-        // validar la cantidad de decimales
+        // Validates the number of decimal places
         if (finalGrade.stripTrailingZeros().scale() > 1) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La nota debe tener solo un decimal");
         }
@@ -142,7 +142,7 @@ public class GradeService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "La inscripcion debe estar activa");
         }
 
-        // revisar el estado del periodo academico
+        // Checks the academic period status
         if (enrollment.getAcademicPeriod().getStatus() != AcademicPeriodStatus.ABIERTO) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El periodo academico debe estar abierto");
         }
@@ -160,12 +160,6 @@ public class GradeService {
 
         if (!(authentication instanceof JwtAuthenticationToken jwtAuth)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuario no autenticado");
-        }
-
-        // administrators can manage grades
-        if (authentication.getAuthorities().stream()
-                .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"))) {
-            return;
         }
 
         // only teachers can register or update grades

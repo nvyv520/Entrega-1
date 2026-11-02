@@ -174,27 +174,27 @@ public class EnrollmentService {
     }
 
 
-    //validar condiciones de inscripcion
+    //Validates the enrollment conditions
     private void validateEnrollment(StudentEntity student, SectionEntity section) {
 
         validateStudentStatus(student);
 
-        // el periodo debe estar abierto 
+        // Checks that the period is open 
         if (section.getAcademicPeriod().getStatus() != AcademicPeriodStatus.ABIERTO) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El periodo debe estar abierto");
         }
 
-        // la seccion debe estar activa
+        // Checks that the section is active
         if(section.getStatus() != Status.ACTIVA) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "La seccion debe estar activa");
         }
 
-        // revisar que el estudiante aun este matriculado en el periodo correspondiente
+        // Checks that the student is still matriculated in the period
         if (!matriculationRepository.existsByStudentIdAndAcademicPeriodId(student.getId(), section.getAcademicPeriod().getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El estudiante no esta matriculado en el periodo");
         }
 
-        // revisar que la asignatura pertenece a su plan de estudio 
+        // Checks that the subject belongs to the student study plan 
         if (!student.getStudyPlan().getId().equals(section.getSubject().getStudyPlan().getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "La asignatura no pertenece al plan de estudio del estudiante");
         }
@@ -215,14 +215,14 @@ public class EnrollmentService {
     }
 
 
-    // revisar si el estudiante aprobo una asignatura
+    // Checks if the student passed a subject
     private boolean hasApprovedSubject(Long studentId, Long subjectId) {
         return gradeRepository.existsByEnrollment_Student_IdAndEnrollment_Section_Subject_IdAndResult(
                         studentId, subjectId, GradeResult.APROBADO);
     }
 
 
-    // validar que la asignatura no este aprobada
+    // Validates that the subject has not been passed
     private void validateSubjectNotApproved(StudentEntity student, SubjectEntity subject) {
 
         boolean approved = gradeRepository.existsByEnrollment_Student_IdAndEnrollment_Section_Subject_IdAndResult(
@@ -234,7 +234,7 @@ public class EnrollmentService {
     }
 
 
-    // validar el horario del estudiante para no tener topes
+    // Validates the student schedule to prevent conflicts
     private void validateStudentSchedule(StudentEntity student, SectionEntity section) {
 
         List<EnrollmentEntity> enrollments = enrollmentRepository.findByStudentIdAndAcademicPeriodId(student.getId(), section.getAcademicPeriod().getId());
@@ -262,7 +262,7 @@ public class EnrollmentService {
     }
 
 
-    // validar la capacidad disponible 
+    // Validates the available capacity 
     private void validateCapacity(SectionEntity section) {
         validateCapacity(section, false);
     }
@@ -276,7 +276,7 @@ public class EnrollmentService {
     }
 
 
-    // validar maximo de asignaturas por periodo
+    // Validates the maximum number of subjects per period
     private void validateMaximumSubjects(StudentEntity student, SectionEntity section) {
         validateMaximumSubjects(student, section, false);
     }
@@ -293,7 +293,7 @@ public class EnrollmentService {
     }
 
 
-    // validar minimo de asignaturas por periodo
+    // Validates the minimum number of subjects per period
     private void validateMinimumSubjects(StudentEntity student, Long periodId) {
 
         List<EnrollmentEntity> enrollments = enrollmentRepository.findByStudentIdAndAcademicPeriodId(student.getId(), periodId);
@@ -302,13 +302,37 @@ public class EnrollmentService {
 
         List<SubjectEntity> subjects = subjectRepository.findByStudyPlanId(student.getStudyPlan().getId());
 
-        Long pending = subjects.stream().filter(subject -> !hasApprovedSubject(student.getId(), subject.getId())).count();
+        Set<Long> pendingSubjectIds = subjects.stream()
+                .filter(subject -> !hasApprovedSubject(student.getId(), subject.getId()))
+                .map(SubjectEntity::getId).collect(Collectors.toSet());
+        long pending = pendingSubjectIds.size();
 
         if (pending == 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El estudiante no tiene asignaturas pendientes para inscribir");
         }
 
         Long minimum = Math.min(3, pending);
+
+        // With fewer than three pending subjects, require only those available to enroll.
+        if (pending < 3) {
+            Set<Long> availableSubjectIds = enrollments.stream()
+                    .filter(enrollment -> enrollment.getStatus() == EnrollmentStatus.ACTIVO)
+                    .map(enrollment -> enrollment.getSection().getSubject().getId()).collect(Collectors.toSet());
+            Set<String> occupiedBlocks = enrollments.stream()
+                    .filter(enrollment -> enrollment.getStatus() == EnrollmentStatus.ACTIVO)
+                    .flatMap(enrollment -> enrollment.getSection().getBlocks().stream()).collect(Collectors.toSet());
+
+            for (SectionEntity section : sectionRepository.findByAcademicPeriodId(periodId)) {
+                if (pendingSubjectIds.contains(section.getSubject().getId()) && section.getStatus() == Status.ACTIVA &&
+                    hasApprovedPrerequisites(section.getSubject(), id -> hasApprovedSubject(student.getId(), id)) &&
+                    section.getBlocks().stream().noneMatch(occupiedBlocks::contains) &&
+                    enrollmentRepository.countBySectionIdAndStatus(section.getId(), EnrollmentStatus.ACTIVO) < section.getCapacity()) {
+                    availableSubjectIds.add(section.getSubject().getId());
+                }
+            }
+
+            minimum = pendingSubjectIds.stream().filter(availableSubjectIds::contains).count();
+        }
 
         if (total < minimum) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Debe inscribir al menos " + minimum + " asignaturas para verificar la seleccion; actualmente tiene " + total);
@@ -413,7 +437,7 @@ public class EnrollmentService {
     @Transactional 
     public EnrollmentResponseDTO createEnrollment (EnrollmentRequestDTO enrollment) {
 
-        // revisar que se ingresa la informacion completa
+        // Checks that the enrollment information is complete
         if (enrollment == null || enrollment.getStudentId() == null || enrollment.getSectionId() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, " El estudiante y seccion son obligatorios");
         }
@@ -435,7 +459,7 @@ public class EnrollmentService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "La seccion cambio de periodo");
         }
 
-        // revisar que no tenga la misma asignatura inscrita en otra seccion
+        // Checks that the subject is not enrolled in another section
         List<EnrollmentEntity> studentEnrollments = enrollmentRepository.findByStudentIdAndAcademicPeriodId(student.getId(), periodId);
 
         for (EnrollmentEntity current : studentEnrollments) {
@@ -446,25 +470,25 @@ public class EnrollmentService {
             }
         }
 
-        // validar la inscripcion
+        // Validates the enrollment
         validateEnrollment(student, section);
 
-        // ver que el estudiante aun no este inscrito 
+        // Checks that the student is not already enrolled 
         EnrollmentEntity existing = enrollmentRepository.findByStudentIdAndSectionId(student.getId(), section.getId()).orElse(null);
 
         if (existing != null && existing.getStatus() == EnrollmentStatus.ACTIVO) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El estudiante ya se encuentra inscrito en la seccion");
         }
 
-        // no reactivar alumnos que ya estuvieron inscritos y tienen nota
+        // Prevents reactivating enrollments that already have a grade
         if (existing != null && gradeRepository.existsByEnrollmentId(existing.getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puede reactivar una inscripcion con calificacion");
         }
 
-        // validar que la asignatura no este aprobada
+        // Validates that the subject has not been passed
         validateSubjectNotApproved(student, section.getSubject());
 
-        // validar los prerequisitos, topes de horario, capacidad, cantidad de asignaturas y prioridad
+        // Validates prerequisites, schedule conflicts, capacity, subject count and priority
         validatePrerequisites(student, section.getSubject());
         validateStudentSchedule(student, section);
         validateCapacity(section);
@@ -489,13 +513,13 @@ public class EnrollmentService {
             saved = enrollmentRepository.save(newEnrollment);
         }
 
-        // actualizar la cantidad de estudiantes inscritos
+        // Updates the enrolled student count
         enrollmentRepository.flush();
         Long enrolled = enrollmentRepository.countBySectionIdAndStatus(section.getId(), EnrollmentStatus.ACTIVO);
         section.setEnrolledStudents(Math.toIntExact(enrolled));
         sectionRepository.save(section);
 
-        // La seleccion cambio, debe verificarse nuevamente
+        // Requires verification again after the selection changes
         invalidateSelectionVerification(student.getId(), periodId);
 
         return new EnrollmentResponseDTO(saved);
@@ -523,32 +547,32 @@ public class EnrollmentService {
         // reload enrollment after acquiring locks
         entityManager.refresh(enrollment);
 
-        // validar que el periodo este abierto 
+        // Validates that the period is open 
         if (section.getAcademicPeriod().getStatus() != AcademicPeriodStatus.ABIERTO) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puede cambiar, el periodo se encuentra cerrado");
         }
 
-        // ver que la inscripcion esta activa
+        // Checks that the enrollment is active
         if (enrollment.getStatus() == EnrollmentStatus.CANCELADO) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "La inscripcion ya se encuentra cancelada");
         }
 
-        // no cambiar si ya tiene nota
+        // Prevents changes when a grade already exists
         if (gradeRepository.existsByEnrollmentId(id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puede cancelar ya que cuenta con calificacion");
         }
 
-        // cancelar la inscripcion
+        // Cancels the enrollment
         enrollment.setStatus(EnrollmentStatus.CANCELADO);
         EnrollmentEntity saved =  enrollmentRepository.save(enrollment);
 
-        // actualizar la cantidad de alumnos inscritos 
+        // Updates the enrolled student count 
         enrollmentRepository.flush();
         Long enrolled = enrollmentRepository.countBySectionIdAndStatus(section.getId(), EnrollmentStatus.ACTIVO);
         section.setEnrolledStudents(Math.toIntExact(enrolled));
         sectionRepository.save(section);
 
-        // La seleccion cambio, debe verificarse nuevamente
+        // Requires verification again after the selection changes
         invalidateSelectionVerification(studentId, periodId);
 
         return new EnrollmentResponseDTO(saved);
@@ -562,7 +586,7 @@ public class EnrollmentService {
     }
     
     
-    // Shared verification for the administrative and personal flows.
+    // Shared selection verification.
     private void verifyEnrollmentSelection(Long studentId, Long periodId) {
 
         // Lock academic period and student
@@ -620,7 +644,7 @@ public class EnrollmentService {
         // Validate required minimum
         validateMinimumSubjects(student, periodId);
 
-        // Guardar la seleccion como verificada
+        // Saves the selection as verified
         PeriodMatriculationEntity matriculation =
                 findMatriculation(studentId, periodId);
 

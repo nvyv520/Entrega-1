@@ -4,15 +4,21 @@ import SIGA.backend.entities.StudentEntity;
 import SIGA.backend.entities.StudentStatus;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.stereotype.Repository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import jakarta.persistence.LockModeType;
 
 @Repository 
 public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select person from StudentEntity person where person.id = :id")
+    Optional<StudentEntity> findByIdForUpdate(@Param("id") Long id);
+
     // find by rut
     Optional<StudentEntity> findByRut(String rut);
 

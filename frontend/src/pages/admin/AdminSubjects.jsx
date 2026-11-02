@@ -51,7 +51,7 @@ function AdminSubjects() {
             </TextField>
             <TextField size="small" select label="Plan de estudio" value={studyPlanId} onChange={event => setStudyPlanId(event.target.value)} sx={{ width: 180 }} disabled={plans.loading || Boolean(plans.error)}>
                 <MenuItem value="">Todos</MenuItem>
-                {plans.rows.filter(row => matchesFilter(row.careerId, careerId)).map(row => <MenuItem key={row.id} value={row.id}>{row.identifier} (carrera {row.careerId})</MenuItem>)}
+                {plans.rows.filter(row => matchesFilter(row.careerId, careerId)).map(row => <MenuItem key={row.id} value={row.id}>{row.identifier} ({careers.rows.find(career => career.id === row.careerId)?.code})</MenuItem>)}
             </TextField>
             <TextField size="small" select label="Semestre curricular" value={semester} onChange={event => setSemester(event.target.value)} sx={{ width: 190 }}>
                 <MenuItem value="">Todos</MenuItem>
@@ -68,6 +68,9 @@ function AdminSubjects() {
         </>} />
         <Alert severity="info">El semestre y el plan no son editables. Las horas se bloquean si hay secciones; las asignaturas con historial académico no admiten edición. El backend valida cada operación.</Alert>
         {form && <AdminForm title={`${form.id ? "Editar" : "Crear"} asignatura`} onClose={() => setForm(null)} onSubmit={async () => {
+            if ((!form.id || editField === "hours") && Number(form.theoryHours) + Number(form.exerciseHours) + Number(form.laboratoryHours) > 7) {
+                throw new Error("Horas TEL: la suma de teoría, ejercicios y laboratorio no puede superar 7 horas semanales.");
+            }
             const data = { code: form.code.trim(), name: form.name.trim(), studyPlanId: Number(form.studyPlanId), prerequisiteIds: form.prerequisiteIds.map(Number) };
             numberFields.forEach(([field]) => { data[field] = Number(form[field]); });
             if (form.id) await saveAdminFields("/subjects", form.id, data, ["code", "name", "studyPlanId", "prerequisiteIds", ...numberFields.map(([field]) => field)], editField === "hours" ? ["theoryHours", "exerciseHours", "laboratoryHours"] : [editField]);

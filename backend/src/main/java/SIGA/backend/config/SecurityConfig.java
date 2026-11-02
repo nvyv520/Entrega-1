@@ -149,8 +149,11 @@ public class SecurityConfig {
 
 
                         // Enrollments - administration
-                        .requestMatchers("/api/enrollments", "/api/enrollments/**")
+                        .requestMatchers(HttpMethod.GET, "/api/enrollments", "/api/enrollments/**")
                                 .hasRole("ADMIN")
+
+                        .requestMatchers("/api/enrollments", "/api/enrollments/**")
+                                .denyAll()
 
                         // Grades - authenticated student
                         .requestMatchers(
@@ -168,14 +171,14 @@ public class SecurityConfig {
                                 HttpMethod.POST,
                                 "/api/grades"
                         )
-                                .hasAnyRole("ADMIN", "TEACHER")
+                                .hasRole("TEACHER")
 
                         // Grades - update
                         .requestMatchers(
                                 HttpMethod.PUT,
                                 "/api/grades/*"
                         )
-                                .hasAnyRole("ADMIN", "TEACHER")
+                                .hasRole("TEACHER")
 
                         // Grades - administration
                         .requestMatchers(

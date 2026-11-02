@@ -76,7 +76,7 @@ public class PeriodMatriculationService {
     @Transactional 
     public PeriodMatriculationResponseDTO createMatriculation(PeriodMatriculationRequestDTO matriculation) {
 
-        // si se ingreso una matricula vacia
+        // Checks for missing matriculation information
         if (matriculation == null || matriculation.getStudentId() == null || matriculation.getAcademicPeriodId() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "EL estudiante y periodo academico son obligatorios");
         }
@@ -95,17 +95,17 @@ public class PeriodMatriculationService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Estudiante no encontrado");
         }
 
-        // validar estado del estudiante (regular)
+        // Validates the student status (regular)
         if (student.getStatus() != StudentStatus.REGULAR) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El estudiante no esta habilitado para matricula");
         }
 
-        // validar estado del periodo academico 
+        // Validates the academic period status 
         if (period.getStatus() != AcademicPeriodStatus.ABIERTO) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El periodo academico no est aabierto");
         }
 
-        // revisar que no se esta duplicando
+        // Checks for a duplicate matriculation
         if (matriculationRepository.existsByStudentIdAndAcademicPeriodId(student.getId(), period.getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El estudiante ya esta matriculado en este periodo");
         }

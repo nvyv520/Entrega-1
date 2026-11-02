@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import lombok.Data;
+import tools.jackson.databind.annotation.JsonDeserialize;
 
 @Data
 public class StudentRequestDTO {
@@ -28,7 +29,9 @@ public class StudentRequestDTO {
     private String email;
 
     @NotNull(message = "La carrera es obligatoria")
+    @JsonDeserialize(using = LongRequestDeserializer.class)
     private Long careerId;
 
+    @JsonDeserialize(using = LongRequestDeserializer.class)
     private Long studyPlanId;
 }

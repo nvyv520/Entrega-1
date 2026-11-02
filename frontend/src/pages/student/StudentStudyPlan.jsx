@@ -60,7 +60,7 @@ function getSubjectStatus(subject, history, currentSubjectIds) {
 const statusStyles = {
     approved: {
         label: "Aprobada",
-        color: "#2F6B4F"
+        color: "#CDEBCF"
     },
     "in-progress": {
         label: "Cursando",
@@ -83,7 +83,7 @@ const statusStyles = {
 function StudentStudyPlan() {
 
 
-    /* guardar informacion */
+    /* Stores the information */
     const [subjects, setSubjects] = useState([]);
     const [history, setHistory] = useState([]);
     const [currentSubjectIds, setCurrentSubjectIds] = useState(new Set());
@@ -96,7 +96,7 @@ function StudentStudyPlan() {
     const [selectionMessage, setSelectionMessage] = useState("");
     const [selectionError, setSelectionError] = useState(false);
 
-    /* cargar datos */
+    /* Loads the data */
     useEffect(() => {
 
         let active = true;
@@ -269,7 +269,7 @@ function StudentStudyPlan() {
                                         title={statusStyles[status].label}
                                         sx={{
                                             bgcolor: statusStyles[status].color,
-                                            color: status === "approved" ? "#FFFFFF" : "inherit",
+                                            color: status === "approved" ? "#285D39" : "inherit",
                                             border: "1px solid var(--border-color)",
                                             borderRadius: "10px",
                                             p: 1.5,

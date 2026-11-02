@@ -107,7 +107,7 @@ public class StudyPlanService {
         String identifier = studyPlan.getIdentifier().trim();
         Long careerId = studyPlan.getCareerId();
         
-        // no permitir cambios a la carrera asociada
+        // Prevents changes to the associated career
         if (!current.getCareer().getId().equals(careerId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No se puede cambiar la carrera a la que pertenece un plan");
         }

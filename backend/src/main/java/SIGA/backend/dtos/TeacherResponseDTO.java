@@ -3,6 +3,7 @@ package SIGA.backend.dtos;
 import SIGA.backend.entities.TeacherEntity;
 
 import SIGA.backend.entities.Status;
+import SIGA.backend.entities.TeacherStatus;
 
 import lombok.RequiredArgsConstructor;
 import lombok.AllArgsConstructor;
@@ -21,7 +22,7 @@ public class TeacherResponseDTO {
     private String email;
     private String professionalTitle;
     private String academicDegree;
-    private Status status;
+    private TeacherStatus status;
 
     public TeacherResponseDTO(TeacherEntity teacher) {
         this.id = teacher.getId();
@@ -31,7 +32,8 @@ public class TeacherResponseDTO {
         this.email = teacher.getEmail();
         this.professionalTitle = teacher.getProfessionalTitle();
         this.academicDegree = teacher.getAcademicDegree();
-        this.status = teacher.getStatus();
+        // Exposes teacher states while preserving stored status values.
+        this.status = teacher.getStatus() == Status.ACTIVA ? TeacherStatus.ACTIVO : TeacherStatus.INACTIVO;
     }
     
 }

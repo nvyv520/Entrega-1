@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { Children, cloneElement, isValidElement, useState } from "react";
 import PropTypes from "prop-types";
 import {
-    Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Stack
+    Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Stack, TextField
 } from "@mui/material";
 import { adminErrorMessage, useAdminRecords } from "../../services/adminAcademic";
 import { adminContentSx } from "../../styles/adminContent";
@@ -13,11 +13,46 @@ export function AdminForm({ title, children, onClose, onSubmit, submitLabel = "G
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState(false);
+    const [fieldErrors, setFieldErrors] = useState({});
     const choosing = editOptions && !selectedOption;
+
+    const visitFields = (nodes, visit) => Children.map(nodes, child => {
+        if (!isValidElement(child)) return child;
+        if (child.type === TextField) return visit(child);
+        return child.props.children ? cloneElement(child, {}, visitFields(child.props.children, visit)) : child;
+    });
+
+    const validateFields = () => {
+        const errors = {};
+        visitFields(children, child => {
+            const { label, value, required, disabled, type, slotProps } = child.props;
+            if (disabled) return child;
+            const input = slotProps?.htmlInput || {};
+            const text = String(value ?? "");
+            if (required && (!text.trim() || (Array.isArray(value) && !value.length))) {
+                errors[label] = "El campo es obligatorio";
+            } else if (type === "number" && text) {
+                const number = Number(text);
+                if (!/^-?[0-9]+$/.test(text) || !Number.isSafeInteger(number) || (input.min != null && number < input.min) || (input.max != null && number > input.max)) {
+                    errors[label] = `Ingrese un número entero${input.min != null ? ` desde ${input.min}` : ""}${input.max != null ? ` hasta ${input.max}` : ""}`;
+                }
+            } else if (input.maxLength && text.length > input.maxLength) {
+                errors[label] = `El máximo es ${input.maxLength} caracteres`;
+            }
+            return child;
+        });
+        setFieldErrors(errors);
+        if (Object.keys(errors).length) {
+            setError(Object.entries(errors).map(([label, message]) => `${label}: ${message}`).join(". "));
+            return false;
+        }
+        return true;
+    };
 
     const selectOption = async value => {
         if (saving) return;
         setError("");
+        setFieldErrors({});
         setSaving(true);
         try {
             if (recordEndpoint) {
@@ -35,6 +70,7 @@ export function AdminForm({ title, children, onClose, onSubmit, submitLabel = "G
     const submit = async event => {
         event.preventDefault();
         if (saving || choosing || success || readOnly || submitDisabled) return;
+        if (!validateFields()) return;
         setSaving(true);
         setError("");
         try {
@@ -49,7 +85,7 @@ export function AdminForm({ title, children, onClose, onSubmit, submitLabel = "G
     };
 
     return <Dialog open onClose={saving ? undefined : onClose} fullWidth maxWidth="md" sx={adminContentSx}>
-        <form onSubmit={submit}>
+        <form noValidate onSubmit={submit}>
             <DialogTitle>{choosing && !success ? "¿Qué deseas hacer?" : title}</DialogTitle>
             <DialogContent>
                 <Stack spacing={2} sx={{ pt: 1 }}>
@@ -64,7 +100,13 @@ export function AdminForm({ title, children, onClose, onSubmit, submitLabel = "G
                             <Button color="error" variant="outlined" disabled={saving || removeDisabled} onClick={onRemove}>Eliminar registro</Button>
                         </>}
                     </> : <fieldset disabled={saving} style={{ border: 0, margin: 0, padding: 0 }}>
-                        <Stack spacing={2}>{children}</Stack>
+                        <Stack spacing={2}>{visitFields(children, child => fieldErrors[child.props.label] ? cloneElement(child, {
+                            error: true, helperText: fieldErrors[child.props.label],
+                            onChange: event => {
+                                setFieldErrors(errors => ({ ...errors, [child.props.label]: "" }));
+                                child.props.onChange?.(event);
+                            }
+                        }) : child)}</Stack>
                     </fieldset>}
                 </Stack>
             </DialogContent>

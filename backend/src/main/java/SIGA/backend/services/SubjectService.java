@@ -72,29 +72,29 @@ public class SubjectService {
     // validate information of the subject
     private void validateSubjectData(SubjectRequestDTO subject) {
 
-        // revisar que cuenta con datos
+        // Checks for required information
         if (subject.getCode() == null || subject.getCode().isBlank() ||
             subject.getName() == null || subject.getName().isBlank() ||
             subject.getStudyPlanId() == null){
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El código, nombre y plan de estudio son obligatorios");
         }
 
-        // revisar que no superan la longitud
+        // Checks that the values do not exceed the allowed length
         if (subject.getCode().trim().length() > 20 || subject.getName().trim().length() > 100) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El código o nombre superan la longitud permitida");
         }
 
-        // revisar que esta dentro de los semestre permitidos
+        // Checks that the semester is within the allowed range
         if (subject.getSemester() == null || subject.getSemester() < 1 || subject.getSemester() > 4) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El semestre debe estar entre 1 y 4");
         }
 
-        // revisar que los creditos estan en el rango permetido
+        // Checks that the credits are within the allowed range
         if (subject.getSct() == null || subject.getSct() < 1 || subject.getSct() > 7) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El SCT debe estar entre 1 y 7");
         }
 
-        // revisar las horas correspondientes
+        // Checks the corresponding hours
         Integer theory = subject.getTheoryHours();
         Integer exercise  = subject.getExerciseHours();
         Integer lab = subject.getLaboratoryHours();
@@ -105,50 +105,50 @@ public class SubjectService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Las horas correspondientes son obligatorias");
         }
 
-        if ( theory + exercise + lab > 7) {
+        if ( (long) theory + exercise + lab > 7) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Se excede de las horas maximas permitidas");
         }
     }
 
 
-    // validar prerequisitos
+    // Validates the prerequisites
     private Set<SubjectEntity> validatePrerequisites(Set<Long> prerequisiteIds, Long studyPlanId, Integer semester, Long subjectId) {
 
         Set<SubjectEntity> prerequisites = new HashSet<>();
 
-        // ramos sin prerequisitos
+        // Handles subjects without prerequisites
         if (prerequisiteIds == null || prerequisiteIds.isEmpty()) {
             return prerequisites;
         }
 
-        // validar el maximo de prerequisitos
+        // Validates the maximum number of prerequisites
         if (prerequisiteIds.size() > 3) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Se excede el máximo de prerequisitos permitidos");
         }
 
-        // revisar logica
+        // Checks the prerequisite rules
         for (Long prerequisiteId : prerequisiteIds) {
 
-            // id del prerequisito
+            // Checks the prerequisite ID
             if (prerequisiteId == null) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El Id del prerequisito es obligatorio");
             }
 
-            // no puede ser su propio prerequisito
+            // Prevents a subject from being its own prerequisite
             if (prerequisiteId.equals(subjectId)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La asignatura no puede ser su propio prerequisito");
             }
 
-            // encontrar el prerequisito
+            // Finds the prerequisite
             SubjectEntity prerequisite = subjectRepository.findById(prerequisiteId).orElseThrow(() -> 
                                         new ResponseStatusException(HttpStatus.NOT_FOUND, "Prerequisito no encontrado"));
 
-            // validar que sean del mismo plan de estudio
+            // Validates that both subjects belong to the same study plan
             if (!prerequisite.getStudyPlan().getId().equals(studyPlanId)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Las asignaturas no pertenecen al mismo plan de estudio");
             }
 
-            // validar el orden de los semestres
+            // Validates the semester order
             if (prerequisite.getSemester() >= semester) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El prerequisito debe ser de un semestre anterior");
             }
@@ -170,16 +170,16 @@ public class SubjectService {
 
         String code = subject.getCode().trim();
 
-        // validar plan de estudios
+        // Validates the study plan
         StudyPlanEntity studyPlan = studyPlanRepository.findById(subject.getStudyPlanId())
                                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Plan de estudio no encontrado"));
         
-        // verificar si el ramo ya existe
+        // Checks if the subject already exists
         if (subjectRepository.existsByStudyPlanIdAndCode(studyPlan.getId(), code)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe una asignatura con el código");
         }
 
-        // validar prerequisitos
+        // Validates the prerequisites
         Set<SubjectEntity> prerequisites = validatePrerequisites(subject.getPrerequisiteIds(), studyPlan.getId(), subject.getSemester(), null);
 
         // create subject
@@ -205,29 +205,29 @@ public class SubjectService {
 
         SubjectEntity current = findSubjectById(id);
 
-        // validar los datos 
+        // Validates the data 
         validateSubjectData(subject);
 
         String code = subject.getCode().trim();
         Long studyPlanId = subject.getStudyPlanId();
 
-        // no permitir cambiar el plan de estudios 
+        // Prevents changes to the study plan 
         if (!current.getStudyPlan().getId().equals(studyPlanId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No se puede cambiar el plan de estudios al que pertenece");
         }
 
-        // no permitir el cambio de semestre
+        // Prevents changes to the semester
         if (!current.getSemester().equals(subject.getSemester())) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT, "No se puede modificar el semestre de una asignatura");
         }
 
-        // no permitir cambiar la informacion academica
+        // Prevents changes to academic information
         if (enrollmentRepository.existsBySection_Subject_Id(id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puede modificar una asignatura con historial académico");
         }
 
-        // no permitir cambiar horas TEL si tiene secciones
+        // Prevents TEL hour changes when sections exist
         if (sectionRepository.existsBySubjectId(id) &&
             (!current.getTheoryHours().equals(subject.getTheoryHours()) ||
             !current.getExerciseHours().equals(subject.getExerciseHours()) ||
@@ -236,17 +236,17 @@ public class SubjectService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No se pueden modificar las horas TEL de una asignatura con secciones");
         }
 
-        // ver que no se este duplicando 
+        // Checks for a duplicate subject 
         subjectRepository.findByStudyPlanIdAndCode(studyPlanId, code).ifPresent(existingSubject -> {
             if (!existingSubject.getId().equals(id)) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe una asignatura con el codigo");
             }
         });
 
-        // validar prerequisitos
+        // Validates the prerequisites
         Set<SubjectEntity> prerequisites =  validatePrerequisites(subject.getPrerequisiteIds(), studyPlanId, subject.getSemester(), id);
 
-        // actualizar
+        // Updates the subject information
         current.setCode(code);
         current.setName(subject.getName().trim());
         current.setSemester(subject.getSemester());
@@ -266,13 +266,13 @@ public class SubjectService {
     public void deleteSubject(Long id) {
         SubjectEntity subject = findSubjectById(id);
 
-        // verificar inscripciones de las asignatura
-        // para no modificar los historiales
+        // Checks the subject enrollments
+        // Preserves the academic records
         if (enrollmentRepository.existsBySection_Subject_Id(id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No es posible eliminar la asigantura, ya que forma parte de historiales academicos");
         }
 
-        // verficar si tiene secciones o prerequisitos activos
+        // Checks for associated sections or active prerequisite references
         if (sectionRepository.existsBySubjectId(id) || subjectRepository.existsByPrerequisites_Id(id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puede eliminar una asignatura con secciones o prerequisito activo");
         }

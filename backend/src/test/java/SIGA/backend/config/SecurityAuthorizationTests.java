@@ -97,7 +97,11 @@ class SecurityAuthorizationTests {
         }
         mvc.perform(patch("/api/academic-periods/4/close").with(account("ADMIN"))).andExpect(status().isOk());
         mvc.perform(patch("/api/enrollments/student/8/academic-period/4/confirm").with(account("ADMIN")))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/enrollments").with(account("ADMIN"))).andExpect(status().isForbidden());
+        mvc.perform(patch("/api/enrollments/1/cancel").with(account("ADMIN"))).andExpect(status().isForbidden());
+        mvc.perform(post("/api/grades").with(account("ADMIN"))).andExpect(status().isForbidden());
+        mvc.perform(put("/api/grades/1").with(account("ADMIN"))).andExpect(status().isForbidden());
     }
 
     @Test

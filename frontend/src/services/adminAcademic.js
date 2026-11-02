@@ -5,6 +5,10 @@ import careerService from "./career.service";
 export function adminErrorMessage(error) {
     const data = error.response?.data;
     const reason = typeof data === "string" ? data : data?.detail || data?.message;
+    if (error.config?.method === "post" && /^\/(students|teachers)\/?$/.test(error.config?.url || "")
+        && (!error.response || error.response.status >= 500)) {
+        return `${reason || "No se pudo confirmar el resultado del registro."} Revisa el registro y la cuenta en Keycloak antes de reintentar; puede requerir conciliación manual.`;
+    }
     if (typeof reason === "string" && reason.trim()) return reason;
     if (!error.isAxiosError && error.message) return error.message;
     return {

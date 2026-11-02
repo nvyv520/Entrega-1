@@ -21,7 +21,7 @@ function AdminTable({ title, records, columns, actions, filtered = false }) {
                     <TableBody>{records.rows.map(row => (
                         <TableRow key={row.id ?? row.enrollmentId}>
                             {columns.map(([field, , render]) => <TableCell key={field} sx={{ maxWidth: 320, overflowWrap: "anywhere" }}>
-                                {render ? render(row) : Array.isArray(row[field]) ? row[field].join(", ") : String(row[field] ?? "—")}
+                                {render ? render(row, records.rows) : Array.isArray(row[field]) ? row[field].join(", ") : String(row[field] ?? "—")}
                             </TableCell>)}
                             {actions && <TableCell sx={{ width: 152, minWidth: 152, whiteSpace: "nowrap" }}><Stack direction="row" spacing={1} sx={{ flexWrap: "nowrap", "& .MuiButton-root": { minWidth: 104, height: 36, flexShrink: 0 } }}>{actions(row)}</Stack></TableCell>}
                         </TableRow>

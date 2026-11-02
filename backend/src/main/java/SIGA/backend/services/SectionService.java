@@ -118,30 +118,30 @@ public class SectionService {
     // validate section data
     private void validateSectionData(SectionRequestDTO section) {
 
-        // si falta alguno de los datos
+        // Checks for missing information
         if (section == null || section.getSubjectId() == null ||
             section.getAcademicPeriodId() == null || 
             section.getTeacherId() == null) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La asignatura, periodo academico y docente son obligatorios");
         }
 
-        // si la capacidad no es valida
+        // Checks if the capacity is valid
         Integer capacity = section.getCapacity();
         if (capacity == null || capacity < 1 || capacity > 60) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La capacidad debe estar entre 1 y 60");
         }
 
-        // revisar que cuenta con al menos un bloque horario
+        // Checks that at least one schedule block is assigned
         if (section.getBlocks() == null || section.getBlocks().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Debe tener al menos un bloque horario");
         }
 
-        // revisar que no existan bloques duplicados
+        // Checks for duplicate schedule blocks
         if (new HashSet<>(section.getBlocks()).size() != section.getBlocks().size()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No se permiten bloques horarios duplicados");
         }
 
-        // revisar que los bloques sean validos
+        // Checks that the schedule blocks are valid
         for (String block : section.getBlocks()) {
             if (block == null || !block.matches("^[LMWJV][1-6]$")) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El bloque horario no es valido");
@@ -150,7 +150,7 @@ public class SectionService {
     }
 
 
-    // validar estado del periodo academico 
+    // Validates the academic period status 
     private void validateAcademicPeriod(AcademicPeriodEntity period) {
         if (period.getStatus() != AcademicPeriodStatus.ABIERTO) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El periodo academico debe estar abierto");
@@ -158,7 +158,7 @@ public class SectionService {
     }
 
 
-    // validar estado del profesor
+    // Validates the teacher status
     private void validateTeacher(TeacherEntity teacher) {
         if (teacher.getStatus() != Status.ACTIVA) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El docente debe estar activo");
@@ -166,7 +166,7 @@ public class SectionService {
     }
 
 
-    // validar las horas para el TEL
+    // Validates the TEL hours
     private void validateHours(SubjectEntity subject, Set<String> blocks) {
 
         int total = subject.getLaboratoryHours() + subject.getExerciseHours() + subject.getTheoryHours();
@@ -177,19 +177,19 @@ public class SectionService {
     }
 
 
-    // validar topes horario del profesor
+    // Validates teacher schedule conflicts
     private void validateTeacherSchedule(Long sectionId, Long teacherId, Long academicPeriodId, Set<String> blocks) {
 
         List<SectionEntity> sections = sectionRepository.findByTeacherId(teacherId);
 
         for (SectionEntity current : sections) {
             
-            // ignorar la seccion actual 
+            // Ignores the current section 
             if (sectionId != null && current.getId().equals(sectionId)) {
                 continue;
             }
 
-            // si corresponden al mismo periodo academico 
+            // Checks if both sections belong to the same academic period 
             if (!current.getAcademicPeriod().getId().equals(academicPeriodId)) {
                     continue;
             }
@@ -203,7 +203,7 @@ public class SectionService {
     }
 
 
-    // ver si hay alumnos inscritos en la seccion 
+    // Checks if the section has enrolled students 
     private boolean hasEnrollments(Long sectionId) {
         return !enrollmentRepository.findBySectionId(sectionId).isEmpty();
     }
@@ -229,7 +229,7 @@ public class SectionService {
     @Transactional 
     public SectionResponseDTO createSection(SectionRequestDTO section) {
 
-        // validar la informacion 
+        // Validates the information 
         validateSectionData(section);
 
         Set<String> blocks = new HashSet<>(section.getBlocks());
@@ -237,16 +237,16 @@ public class SectionService {
         SubjectEntity subject = findSubjectById(section.getSubjectId());
         AcademicPeriodEntity period = lockOpenPeriod(section.getAcademicPeriodId());        TeacherEntity teacher = findTeacherById(section.getTeacherId());
 
-        // validar periodo y profesor 
+        // Validates the period and teacher 
         validateAcademicPeriod(period);
         validateTeacher(teacher);
 
-        // revisar que no se este duplicando
+        // Checks for a duplicate section
         if (sectionRepository.existsBySubjectIdAndAcademicPeriodId(subject.getId(), period.getId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe una seccion de esa asignatura en el periodo academico");
         }
 
-        // validar las horas TEL y topes del profesor 
+        // Validates TEL hours and teacher schedule conflicts 
         validateHours(subject, blocks);
         validateTeacherSchedule(null, teacher.getId(), period.getId(), blocks);
 
@@ -271,7 +271,7 @@ public class SectionService {
 
         SectionEntity current = findSectionById(id);
 
-        // validar la informacion 
+        // Validates the information 
         validateSectionData(section);
 
         // lock period during update
@@ -280,16 +280,16 @@ public class SectionService {
 
         Set<String> blocks = new HashSet<>(section.getBlocks());
 
-        // no permitir cambios en periodos cerrados
+        // Prevents changes in closed periods
         validateAcademicPeriod(current.getAcademicPeriod());
 
-        // no permitir cambios de subject o periodo academico 
+        // Prevents changes to the subject or academic period 
         if (!current.getSubject().getId().equals(section.getSubjectId()) || 
             !current.getAcademicPeriod().getId().equals(section.getAcademicPeriodId())) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puede cambiar la asignatura ni el periodo");
         }
         
-        // no permitir cambios si hay inscritos
+        // Prevents changes when enrollments exist
         if (hasEnrollments(id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puede modificar ya que cuenta con inscritos");
         }
@@ -297,7 +297,7 @@ public class SectionService {
         TeacherEntity teacher = findTeacherById(section.getTeacherId());
         validateTeacher(teacher);
 
-        // validar las horas TEL correspondientes y topes horarios del docente
+        // Validates the TEL hours and teacher schedule conflicts
         validateHours(current.getSubject(), blocks);
         validateTeacherSchedule(id, teacher.getId(), current.getAcademicPeriod().getId(), blocks);
 
@@ -318,10 +318,10 @@ public class SectionService {
         lockOpenPeriod(section.getAcademicPeriod().getId());
         entityManager.refresh(section);
 
-        // no eliminar si el periodo ya cerro
+        // Prevents deletion if the period is closed
         validateAcademicPeriod(section.getAcademicPeriod());
 
-        // revisar si hay inscritos
+        // Checks for enrollments
         if (hasEnrollments(id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puede eliminar ya que cuenta con inscritos");
         }

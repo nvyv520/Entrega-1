@@ -15,8 +15,11 @@ import java.util.Optional;
 @Repository 
 public interface GradeRepository extends JpaRepository<GradeEntity, Long> {
 
+    // Uses only consolidated results for enrollment eligibility.
     @Query("select distinct g.enrollment.section.subject.id from GradeEntity g " +
-            "where g.enrollment.student.id = :studentId and g.result = :result")
+            "where g.enrollment.student.id = :studentId and g.result = :result " +
+            "and g.enrollment.academicPeriod.status = SIGA.backend.entities.AcademicPeriodStatus.CERRADO " +
+            "and g.enrollment.status = SIGA.backend.entities.EnrollmentStatus.ACTIVO")
     List<Long> findSubjectIdsByStudentAndResult(@Param("studentId") Long studentId,
                                               @Param("result") GradeResult result);
 
@@ -43,6 +46,12 @@ public interface GradeRepository extends JpaRepository<GradeEntity, Long> {
     // validations
     boolean existsByEnrollmentId(Long enrollmentId);
 
-    // check if student approved a subject
-    boolean existsByEnrollment_Student_IdAndEnrollment_Section_Subject_IdAndResult( Long studentId, Long subjectId, GradeResult result);
+    // check consolidated results of active enrollments
+    @Query("select (count(g) > 0) from GradeEntity g " +
+            "where g.enrollment.student.id = :studentId and g.enrollment.section.subject.id = :subjectId " +
+            "and g.result = :result " +
+            "and g.enrollment.academicPeriod.status = SIGA.backend.entities.AcademicPeriodStatus.CERRADO " +
+            "and g.enrollment.status = SIGA.backend.entities.EnrollmentStatus.ACTIVO")
+    boolean existsByEnrollment_Student_IdAndEnrollment_Section_Subject_IdAndResult(
+            @Param("studentId") Long studentId, @Param("subjectId") Long subjectId, @Param("result") GradeResult result);
 }

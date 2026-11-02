@@ -21,6 +21,11 @@ function AdminCareers() {
     const records = tab === 0 ? careers : plans;
     const endpoint = tab === 0 ? "/careers" : "/study-plans";
     const title = tab === 0 ? "Carreras" : "Planes de estudio";
+    
+    const prerequisiteNames = (row, subjects) => row.prerequisiteIds.map(id => {
+        const subject = subjects.find(subject => subject.id === id);
+        return subject ? `${subject.code} — ${subject.name}` : `ID ${id}`;
+    }).join(", ") || "Sin prerrequisitos";
 
     const rows = records.rows.filter(row => matchesSearch(row, search, tab === 0 ? ["code", "name"] : ["identifier"])
         && (tab === 0 || matchesFilter(row.careerId, careerId)) && matchesFilter(row.status, tab === 0 ? careerStatus : planStatus));
@@ -73,7 +78,7 @@ function AdminCareers() {
             <Button variant="contained" onClick={() => setForm(tab === 0 ? { code: "", name: "", description: "" } : { identifier: "", careerId })}>Crear {tab === 0 ? "carrera" : "plan"}</Button>
         </Stack>
         {tab === 1 && careers.error && <Alert severity="error" action={<Button onClick={careers.reload}>Reintentar</Button>}>{careers.error}</Alert>}
-        <AdminTable title={title} filtered records={{ ...records, rows }} columns={tab === 0 ? [["code", "Código"], ["name", "Carrera"], ["description", "Descripción"], ["duration", "Duración"], ["status", "Estado"], ["plans", "Planes", row => <Button onClick={() => { setCareerId(row.id); setTab(1); setSearch(""); setPlanStatus(""); }}>Ver</Button>]] : [["identifier", "Identificador"], ["careerId", "Carrera", row => careers.rows.find(career => career.id === row.careerId)?.name || row.careerId], ["status", "Vigencia"], ["subjects", "Asignaturas", row => <Button onClick={() => setQuery({ title: `Asignaturas del plan ${row.identifier}`, endpoint: `/subjects/study-plan/${row.id}`, sortRows: (first, second) => Number(first.semester) - Number(second.semester) || first.code.localeCompare(second.code, "es-CL"), columns: [["code", "Código"], ["name", "Asignatura"], ["semester", "Semestre"], ["sct", "SCT"], ["prerequisiteIds", "Prerrequisitos (ID)"]] })}>Ver</Button>]]}
+        <AdminTable title={title} filtered records={{ ...records, rows }} columns={tab === 0 ? [["code", "Código"], ["name", "Carrera"], ["description", "Descripción"], ["duration", "Duración"], ["status", "Estado"], ["plans", "Planes", row => <Button onClick={() => { setCareerId(row.id); setTab(1); setSearch(""); setPlanStatus(""); }}>Ver</Button>]] : [["identifier", "Identificador"], ["careerId", "Carrera", row => careers.rows.find(career => career.id === row.careerId)?.name || row.careerId], ["status", "Vigencia"], ["subjects", "Asignaturas", row => <Button onClick={() => setQuery({ title: `Asignaturas del plan ${row.identifier}`, endpoint: `/subjects/study-plan/${row.id}`, sortRows: (first, second) => Number(first.semester) - Number(second.semester) || first.code.localeCompare(second.code, "es-CL"), columns: [["code", "Código"], ["name", "Asignatura"], ["semester", "Semestre"], ["sct", "SCT"], ["prerequisiteIds", "Prerrequisitos", prerequisiteNames]] })}>Ver</Button>]]}
             actions={row => <>
                 <Button onClick={() => { setEditField(""); setForm({ ...row }); }}>Editar</Button>
             </>} />

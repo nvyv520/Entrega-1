@@ -34,7 +34,7 @@ public final class AcademicPersonValidation {
 
     public static String normalizeEmail(String value, String current) {
         if (current != null && Objects.equals(value, current)) return current;
-        String email = value == null ? "" : value.trim();
+        String email = value == null ? "" : value;
         String[] parts = email.split("@", -1);
         boolean valid = parts.length == 2 && email.length() <= 254 && parts[0].length() <= 64
                 && parts[0].matches("[A-Za-z0-9!#$%&'*+/=?^_`{|}~.-]+")
@@ -53,6 +53,9 @@ public final class AcademicPersonValidation {
 
     public static String normalizeName(String value, String current) {
         if (current != null && Objects.equals(value, current)) return current;
+        if (value == null || !value.matches("\\p{L}[\\p{L}\\p{M}]*(?:[ '’ʼ-]\\p{L}[\\p{L}\\p{M}]*)*")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El nombre o apellido solo puede contener letras y separadores válidos, sin espacios al principio o final");
+        }
         String name = value == null ? "" : Pattern.compile("\\s+", Pattern.UNICODE_CHARACTER_CLASS).matcher(value.strip()).replaceAll(" ").strip();
         if (name.isBlank()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El nombre y apellido son obligatorios");
         // Capitalization supplied by the user is preserved.

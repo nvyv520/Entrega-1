@@ -5,7 +5,7 @@ import SIGA.backend.entities.StudentStatus;
 import SIGA.backend.dtos.StudentRequestDTO;
 import SIGA.backend.dtos.StudentResponseDTO;
 import SIGA.backend.dtos.StudentAcademicHistoryDTO;
-
+import SIGA.backend.dtos.StudentRegistrationResponseDTO;
 import SIGA.backend.services.StudentService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -133,20 +133,25 @@ public class StudentController {
     }
 
 
+    
     // create a student
-    @PostMapping 
-    @Operation (summary = "Create a new student")
-    @ApiResponses ({
-        @ApiResponse (responseCode = "201", description = "Student created successfully"),
-        @ApiResponse (responseCode = "400", description = "Invalid student data"),
-        @ApiResponse (responseCode = "404", description = "Career not found"),
-        @ApiResponse (responseCode = "409", description = "Student already exist or career unavailable")
+    @PostMapping
+    @Operation(summary = "Create a new student")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Student created successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid student data"),
+        @ApiResponse(responseCode = "404", description = "Career not found"),
+        @ApiResponse(responseCode = "409", description = "Student already exists or career unavailable"),
+        @ApiResponse(responseCode = "502", description = "Keycloak service unavailable")
     })
-    public ResponseEntity<StudentResponseDTO> createStudent(@Valid @RequestBody StudentRequestDTO student) {
-        StudentResponseDTO newStudent = studentService.createStudent(student);
-        URI location = URI.create("/api/students/" + newStudent.getId());
-        return ResponseEntity.created(location).body(newStudent);
+    public ResponseEntity<StudentRegistrationResponseDTO> createStudent(@Valid @RequestBody StudentRequestDTO student) {
+        StudentRegistrationResponseDTO newStudent = studentService.createStudent(student);
+        URI location = URI.create("/api/students/" + newStudent.getStudent().getId());
+        return ResponseEntity.created(location)
+                .header("Cache-Control", "no-store")
+                .body(newStudent);
     }
+
 
 
     // update a student

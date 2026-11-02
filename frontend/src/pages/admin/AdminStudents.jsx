@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { Alert, Button, MenuItem, Stack, TextField, Typography } from "@mui/material";
-import http from "../../http-common";
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from "@mui/material";import http from "../../http-common";
 import { normalizePersonField, preparePersonFields } from "../../services/adminPersonValidation";
 import AdminTable from "../../components/admin/AdminTable";
 import { AdminForm, AdminQuery } from "../../components/admin/AdminDialog";
@@ -26,10 +25,12 @@ function AdminStudents() {
     const [message, setMessage] = useState("");
     const saved = () => { students.reload(); setMessage("Operación realizada correctamente."); };
     const selectorsReady = !careers.loading && !plans.loading && !careers.error && !plans.error;
-    const hasHistory = id => enrollments.rows.some(row => row.studentId === id) || matriculations.rows.some(row => row.studentId === id);
-    const relationsLocked = form?.id && (hasHistory(form.id) || enrollments.loading || matriculations.loading || Boolean(enrollments.error || matriculations.error));
+    const hasHistory = id => enrollments.rows.some(row => row.studentId === id);
+    const relationsLocked = form?.id && (hasHistory(form.id) || enrollments.loading || Boolean(enrollments.error));
     const careerName = id => careers.rows.find(row => row.id === id)?.name || id;
     const planName = id => plans.rows.find(row => row.id === id)?.identifier || id;
+    const [credentials, setCredentials] = useState(null);
+    const [showPassword, setShowPassword] = useState(false);
 
     const rows = students.rows.filter(row => matchesSearch(row, search, ["rut", "firstName", "lastName", "email"])
         && matchesFilter(row.careerId, careerId) && matchesFilter(row.studyPlanId, studyPlanId) && matchesFilter(row.status, status));
@@ -76,16 +77,23 @@ function AdminStudents() {
                 await http.patch(`/students/${form.id}/status`, null, { params: { status: form.status } });
             } else {
                 const data = { ...Object.fromEntries(fields.map(([field]) => [field, form[field]])), careerId: Number(form.careerId), studyPlanId: form.studyPlanId ? Number(form.studyPlanId) : null };
-                Object.assign(data, preparePersonFields(form, !form.id ? fields.map(([field]) => field) : editField === "name" ? ["firstName", "lastName"] : fields.some(([field]) => field === editField) ? [editField] : []));
+                Object.assign(data, preparePersonFields(form, !form.id ? fields.map(([field]) => field) : editField === "name" ? ["firstName", "lastName"] : fields.some(([field]) => field === editField) ? [editField] : [], setFieldErrors));
                 if (form.id) await saveAdminFields("/students", form.id, data, [...fields.map(([field]) => field), "careerId", "studyPlanId"], editField === "name" ? ["firstName", "lastName"] : editField === "relations" ? ["careerId", "studyPlanId"] : [editField]);
-                else { delete data.studyPlanId; await http.post("/students", data); }
-            }
+                else {
+                    delete data.studyPlanId;
+                    const response = await http.post("/students", data);
+                    setCredentials({
+                        username: response.data.username,
+                        temporaryPassword: response.data.temporaryPassword
+                    });
+                    setShowPassword(false);
+                }            }
             saved();
         }} editOptions={form.id ? [
             { value: "rut", label: "RUN" }, { value: "name", label: "Nombre" }, { value: "email", label: "Correo electrónico" },
             { value: "relations", label: "Carrera y plan", disabled: Boolean(relationsLocked) || !selectorsReady },
             { value: "status", label: "Estado académico", disabled: ["EGRESADO", "ELIMINADO"].includes(form.status) }
-        ] : undefined} selectedOption={editField} onSelectOption={value => { setFieldErrors({}); setEditField(value); }} recordEndpoint={form.id ? `/students/${form.id}` : undefined} onLoadRecord={setForm} onRemove={() => setRemove(form)} removeDisabled={enrollments.loading || matriculations.loading || Boolean(enrollments.error || matriculations.error) || hasHistory(form.id)}>
+        ] : undefined} selectedOption={editField} onSelectOption={value => { setFieldErrors({}); setEditField(value); }} recordEndpoint={form.id ? `/students/${form.id}` : undefined} onLoadRecord={setForm} onRemove={() => setRemove(form)} removeDisabled={enrollments.loading || matriculations.loading || Boolean(enrollments.error || matriculations.error) || hasHistory(form.id) || matriculations.rows.some(row => row.studentId === form.id)}>
             {fields.filter(([field]) => !form.id || field === editField || (editField === "name" && ["firstName", "lastName"].includes(field))).map(([field, label, maxLength]) => <TextField key={field} required label={label} type="text" value={form[field]} error={Boolean(fieldErrors[field])} helperText={fieldErrors[field]} onBlur={field === "email" ? undefined : () => formatField(field)} slotProps={{ htmlInput: { maxLength, ...(field === "email" ? { inputMode: "email" } : {}) } }} onChange={event => { setForm({ ...form, [field]: event.target.value }); setFieldErrors(errors => ({ ...errors, [field]: "" })); }} />)}
             {(!form.id || editField === "relations") && <TextField required select label="Carrera" disabled={Boolean(relationsLocked)} value={form.careerId} onChange={event => setForm({ ...form, careerId: event.target.value, studyPlanId: "" })}>
                 {careers.rows.filter(row => row.status === "ACTIVA" || row.id === form.careerId).map(row => <MenuItem key={row.id} value={row.id}>{row.code} — {row.name}</MenuItem>)}
@@ -106,6 +114,51 @@ function AdminStudents() {
             <Alert severity="warning">¿Estás segura de que deseas eliminar a {remove.firstName} {remove.lastName} ({remove.rut})? Esta acción es irreversible.</Alert>
         </AdminForm>}
         {query && <AdminQuery {...query} onClose={() => setQuery(null)} />}
+    
+        {credentials && <Dialog open onClose={() => {
+            setCredentials(null);
+            setShowPassword(false);
+        }} fullWidth maxWidth="sm">
+            <DialogTitle>Estudiante registrado correctamente</DialogTitle>
+            <DialogContent>
+                <Stack spacing={2} sx={{ pt: 1 }}>
+                    <Alert severity="success">
+                        El estudiante fue registrado y su cuenta de Keycloak fue creada correctamente.
+                    </Alert>
+                    <TextField
+                        label="Usuario"
+                        value={credentials.username}
+                        slotProps={{ input: { readOnly: true } }}
+                    />
+                    <TextField
+                        label="Contraseña temporal"
+                        type={showPassword ? "text" : "password"}
+                        value={credentials.temporaryPassword}
+                        slotProps={{ input: { readOnly: true } }}
+                    />
+                    <Button onClick={() => setShowPassword(!showPassword)}>
+                        {showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                    </Button>
+                    <Button onClick={() => navigator.clipboard.writeText(
+                        `Usuario: ${credentials.username}\nContraseña temporal: ${credentials.temporaryPassword}`
+                    )}>
+                        Copiar credenciales
+                    </Button>
+                    <Alert severity="warning">
+                        Guarda estas credenciales antes de cerrar. La contraseña temporal no podrá consultarse nuevamente y el estudiante deberá cambiarla en su primer inicio de sesión.
+                    </Alert>
+                </Stack>
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={() => {
+                    setCredentials(null);
+                    setShowPassword(false);
+                }}>
+                    Cerrar
+                </Button>
+            </DialogActions>
+        </Dialog>}
+
     </Stack>;
 }
 

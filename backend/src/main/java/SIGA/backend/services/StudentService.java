@@ -1,6 +1,7 @@
 package SIGA.backend.services;
 
 import SIGA.backend.entities.CareerEntity;
+import SIGA.backend.entities.AcademicPeriodStatus;
 import SIGA.backend.entities.Status;
 import SIGA.backend.entities.EnrollmentEntity;
 import SIGA.backend.entities.GradeEntity;
@@ -20,9 +21,12 @@ import SIGA.backend.repositories.TeacherRepository;
 import SIGA.backend.dtos.StudentRequestDTO;
 import SIGA.backend.dtos.StudentResponseDTO;
 import SIGA.backend.dtos.StudentAcademicHistoryDTO;
+import SIGA.backend.dtos.StudentRegistrationResponseDTO;
 
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -79,7 +83,7 @@ public class StudentService {
     @Transactional (readOnly = true)
     public List<StudentResponseDTO> getStudentsByCareerId(Long careerId) {
 
-        // verificar que la carrera existe
+        // Checks if the career exists
         if (!careerRepository.existsById(careerId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Carrera no encontrada");
         }
@@ -101,19 +105,23 @@ public class StudentService {
     @Transactional(readOnly = true)
     public List<StudentAcademicHistoryDTO> getStudentAcademicHistory(Long id) {
 
-        // verificar que el estudiante existe
+        // Checks if the student exists
         findStudentById(id);
 
-        // obtener las inscripciones del estudiante
+        // Gets the student enrollments
         List<EnrollmentEntity> enrollments = enrollmentRepository.findByStudentId(id);
 
         List<StudentAcademicHistoryDTO> history = new ArrayList<>();
         for (EnrollmentEntity enrollment : enrollments) {
 
+            // Only closed periods contribute consolidated academic results.
+            if (enrollment.getAcademicPeriod().getStatus() != AcademicPeriodStatus.CERRADO) {
+                continue;
+            }
+
             GradeEntity grade = gradeRepository.findByEnrollmentId(enrollment.getId()).orElse(null);
 
-            // Only actual grades establish an academic result, regardless of period chronology.
-            // An ungraded enrollment in a closed period is inconsistent with closing rules.
+            // An ungraded enrollment does not establish an academic result.
             if (grade == null) {
                 continue;
             }
@@ -128,101 +136,135 @@ public class StudentService {
 
 
 
-    // encontrar el plan activo
-    // auxiliar para crear un estudiante
+    // Finds the current study plan
+    // Supports student creation
     private StudyPlanEntity findCurrentStudyPlan(Long careerId) {
         return studyPlanRepository.findByCareerIdAndStatus(careerId, StudyPlanStatus.VIGENTE).orElseThrow(() -> 
                 new ResponseStatusException(HttpStatus.CONFLICT, "La carrera no tiene un plan de estudio vigente"));
     }
 
 
-    // ver si tiene informacion academica
+    // Checks if the student has academic information
     private boolean hasAcademicInformation(Long studentId) {
-        return enrollmentRepository.existsByStudentId(studentId) ||
-                periodMatriculationRepository.existsByStudentId(studentId);
+        return enrollmentRepository.existsByStudentId(studentId);
     }
 
 
+    
     // create a student
-    @Transactional 
-    public StudentResponseDTO createStudent(StudentRequestDTO student) {
+    @Transactional
+    public StudentRegistrationResponseDTO createStudent(StudentRequestDTO student) {
 
         String rut = AcademicPersonValidation.normalizeRut(student.getRut(), null);
         String email = AcademicPersonValidation.normalizeEmail(student.getEmail(), null);
 
-        // ver si ya existe el rut
-        if(!studentRepository.findByNormalizedRut(AcademicPersonValidation.compactRut(rut)).isEmpty()) {
+        // check if the rut already exists
+        if (!studentRepository.findByNormalizedRut(AcademicPersonValidation.compactRut(rut)).isEmpty()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un estudiante con ese RUT");
         }
 
-        // ver si ya existe el email
+        // check if the email already exists
         if (studentRepository.existsByEmail(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un estudiante con ese correo");
         }
 
-        // encontrar la carrera
+        // find career
         CareerEntity career = careerRepository.findById(student.getCareerId())
-                                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Carrera no encontrada"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Carrera no encontrada"));
 
         // validate active career
         if (career.getStatus() != Status.ACTIVA) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No se pueden registrar estudiantes en una carrera inactiva");
         }
 
-        // asignar el plan de estudio vigente
+        // assign current study plan
         StudyPlanEntity studyPlan = findCurrentStudyPlan(career.getId());
+
+        String firstName = AcademicPersonValidation.normalizeName(student.getFirstName(), null);
+        String lastName = AcademicPersonValidation.normalizeName(student.getLastName(), null);
+
+        // create Keycloak user
+        KeycloakAdminService.CreatedUser keycloakUser =
+                keycloakAdminService.createUser(email, firstName, lastName, "STUDENT");
+
+        // remove newly created account if the transaction rolls back
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                if (status == TransactionSynchronization.STATUS_ROLLED_BACK) {
+                    try {
+                        keycloakAdminService.deleteCreatedUser(keycloakUser);
+                    } catch (Exception exception) {
+                        // The failed cleanup must be reported without exposing credentials.
+                        org.slf4j.LoggerFactory.getLogger(StudentService.class)
+                                .error("Failed to clean up Keycloak account {}; manual reconciliation required", keycloakUser.keycloakSubject());
+                    }
+                } else if (status == TransactionSynchronization.STATUS_UNKNOWN) {
+                    org.slf4j.LoggerFactory.getLogger(StudentService.class)
+                            .error("Uncertain database transaction for Keycloak account {}; manual reconciliation required", keycloakUser.keycloakSubject());
+                }
+            }
+        });
 
         // create student
         StudentEntity newStudent = new StudentEntity();
         newStudent.setRut(rut);
-        newStudent.setFirstName(AcademicPersonValidation.normalizeName(student.getFirstName(), null));
-        newStudent.setLastName(AcademicPersonValidation.normalizeName(student.getLastName(), null));
+        newStudent.setFirstName(firstName);
+        newStudent.setLastName(lastName);
         newStudent.setEmail(email);
         newStudent.setStatus(StudentStatus.REGULAR);
         newStudent.setCareer(career);
         newStudent.setStudyPlan(studyPlan);
+        newStudent.setKeycloakSubject(keycloakUser.keycloakSubject());
 
-        StudentEntity saved  = studentRepository.save(newStudent);
-        return new StudentResponseDTO(saved);
+        StudentEntity saved = studentRepository.saveAndFlush(newStudent);
+
+        return new StudentRegistrationResponseDTO(
+                new StudentResponseDTO(saved),
+                keycloakUser.username(),
+                keycloakUser.temporaryPassword()
+        );
     }
+
 
 
     // update student
     @Transactional 
     public StudentResponseDTO updateStudent(Long id, StudentRequestDTO student) {
 
-        StudentEntity current = findStudentById(id);
+        StudentEntity current = studentRepository.findByIdForUpdate(id).orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Estudiante no encontrado"));
 
         String rut = AcademicPersonValidation.normalizeRut(student.getRut(), current.getRut());
         String email = AcademicPersonValidation.normalizeEmail(student.getEmail(), current.getEmail());
         Long careerId = student.getCareerId();
 
-        // ver si ya existe el rut 
+        // Checks if the RUN already exists 
         if (studentRepository.findByNormalizedRut(AcademicPersonValidation.compactRut(rut)).stream()
                 .anyMatch(existing -> !existing.getId().equals(id))) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un estudiante con ese RUT");
         }
 
-        // ver si ya existe el correo
+        // Checks if the email already exists
         studentRepository.findByEmail(email).ifPresent(existing -> {
             if (!existing.getId().equals(id)) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un estudiante con ese correo");
             }
         });
 
-        // encontrar la carrera
+        // Finds the career
         CareerEntity career = careerRepository.findById(careerId).orElseThrow(() ->
                                 new ResponseStatusException(HttpStatus.NOT_FOUND, "Carrera no encontrada"));
 
-        // confirmar que se ingreso un cambio de carrera
+        // Checks if the career changed
         boolean careerChanged = !current.getCareer().getId().equals(careerId);
 
-        // validar que la carrera esta activa
+        // Validates that the career is active
         if (careerChanged && career.getStatus() != Status.ACTIVA) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puede cambiar a un acarrera inactiva");
         }
 
-        // buscar el nuevo plan de estudio 
+        // Finds the new study plan 
         StudyPlanEntity studyPlan;
 
         if (student.getStudyPlanId() != null) {
@@ -236,23 +278,27 @@ public class StudentService {
             studyPlan = current.getStudyPlan();
         }
 
-        // validar el nuevo plan 
+        // Validates the new study plan 
         if (!studyPlan.getCareer().getId().equals(careerId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "EL plan de estudio no corresponde a la carrera");
         }
 
-        // confirmar cambio de plan 
+        // Checks if the study plan changed 
         boolean studyPlanChanged = !current.getStudyPlan().getId().equals(studyPlan.getId());
 
-        // no permitie que se cambie la informacion 
+        // Prevents changes when academic information exists 
         if ((careerChanged || studyPlanChanged) && hasAcademicInformation(id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puede cambiar debido a que ya cuenta con historial academico");
         }
 
-        // actualizar la informacion del estudiante
+        // Updates the student information
+        String firstName = AcademicPersonValidation.normalizeName(student.getFirstName(), current.getFirstName());
+        String lastName = AcademicPersonValidation.normalizeName(student.getLastName(), current.getLastName());
+        keycloakAdminService.updateUserIdentity(current.getKeycloakSubject(), "STUDENT", current.getEmail(),
+                current.getFirstName(), current.getLastName(), email, firstName, lastName);
         current.setRut(rut);
-        current.setFirstName(AcademicPersonValidation.normalizeName(student.getFirstName(), current.getFirstName()));
-        current.setLastName(AcademicPersonValidation.normalizeName(student.getLastName(), current.getLastName()));
+        current.setFirstName(firstName);
+        current.setLastName(lastName);
         current.setEmail(email);
         current.setCareer(career);
         current.setStudyPlan(studyPlan);
@@ -268,12 +314,12 @@ public class StudentService {
 
         StudentEntity student = findStudentById(id);
 
-        // validar el estado
+        // Validates the status
         if (status == null || status == StudentStatus.EGRESADO || status == StudentStatus.ELIMINADO) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No es posible cambiar el estado manualmente");
         }
 
-        // estados irreversibles
+        // Preserves irreversible statuses
         if (student.getStatus() == StudentStatus.EGRESADO || student.getStatus() == StudentStatus.ELIMINADO) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No se pueden modificar los estados ELiminado o Egresado");
         }
@@ -291,9 +337,14 @@ public class StudentService {
 
         StudentEntity student = findStudentById(id);
 
-        // ver si tiene informacion academica
+        // Checks if the student has academic information
         if (hasAcademicInformation(id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puedde eliminar un estudiante con informacion academica");
+        }
+
+        // preserve administrative matriculation references
+        if (periodMatriculationRepository.existsByStudentId(id)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puede eliminar un estudiante con matriculas administrativas asociadas");
         }
 
         studentRepository.delete(student);
@@ -310,7 +361,12 @@ public class StudentService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El identificador de Keycloak es obligatorio");
         }
 
-        String subject = keycloakSubject.trim();
+        String subject;
+        try {
+            subject = java.util.UUID.fromString(keycloakSubject.trim()).toString();
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Identificador de Keycloak inválido");
+        }
 
         studentRepository.findByKeycloakSubject(subject).ifPresent(existing -> {
             if (!existing.getId().equals(id)) {
@@ -323,7 +379,7 @@ public class StudentService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El estudiante ya tiene una cuenta de Keycloak asociada");
         }
 
-        // verificar que la cuenta no pertenezca a un docente
+        // Checks that the account does not belong to a teacher
         if (teacherRepository.findByKeycloakSubject(subject).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "La cuenta de Keycloak ya esta asociada a un docente");
         }

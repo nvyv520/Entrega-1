@@ -14,6 +14,7 @@ function AdminSections() {
     const [studyPlanId, setStudyPlanId] = useState("");
     const [semester, setSemester] = useState("");
     const [teacherId, setTeacherId] = useState("");
+    const [status, setStatus] = useState("");
     const periods = useAdminRecords("/academic-periods");
     const sections = useAdminRecords("/sections");
     const subjects = useAdminRecords("/subjects");
@@ -44,6 +45,7 @@ function AdminSections() {
         const subject = subjects.rows.find(subject => subject.id === row.subjectId);
         const plan = plans.rows.find(plan => plan.id === subject?.studyPlanId);
         return matchesFilter(row.academicPeriodId, periodId) && matchesFilter(row.teacherId, teacherId)
+            && matchesFilter(row.status, status)
             && matchesFilter(subject?.studyPlanId, studyPlanId) && matchesFilter(subject?.semester, semester) && matchesFilter(plan?.careerId, careerId);
     });
     const dependencies = careerId ? [subjects, plans] : studyPlanId || semester ? [subjects] : [];
@@ -73,7 +75,11 @@ function AdminSections() {
                 <MenuItem value="">Todos</MenuItem>
                 {teachers.rows.map(row => <MenuItem key={row.id} value={row.id}>{row.firstName} {row.lastName} — {row.rut}</MenuItem>)}
             </TextField>
-            <Button size="small" onClick={() => { setPeriodId(""); setCareerId(""); setStudyPlanId(""); setSemester(""); setTeacherId(""); }}>Limpiar filtros</Button>
+            <TextField size="small" select label="Estado de sección" value={status} onChange={event => setStatus(event.target.value)} sx={{ width: 190 }}>
+                <MenuItem value="">Todos</MenuItem>
+                {["ACTIVA", "INACTIVA"].map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}
+            </TextField>
+            <Button size="small" onClick={() => { setPeriodId(""); setCareerId(""); setStudyPlanId(""); setSemester(""); setTeacherId(""); setStatus(""); }}>Limpiar filtros</Button>
             <Button variant="contained" disabled={!selectorsReady} onClick={() => setForm({ subjectId: "", academicPeriodId: periods.rows.some(row => String(row.id) === String(periodId) && row.status === "ABIERTO") ? periodId : "", teacherId: "", capacity: "", blocks: [] })}>Crear sección</Button>
         </Stack>
         <AdminTable title="Secciones" filtered records={filteredRecords(sections, rows, dependencies)} columns={[
@@ -100,7 +106,7 @@ function AdminSections() {
                 {periods.rows.filter(row => row.status === "ABIERTO").map(row => <MenuItem key={row.id} value={row.id}>{row.code}</MenuItem>)}
             </TextField>}
             {(!form.id || editField === "teacherId") && <TextField required select label="Docente" value={form.teacherId} onChange={event => setForm({ ...form, teacherId: event.target.value })}>
-                {teachers.rows.filter(row => row.status === "ACTIVA").map(row => <MenuItem key={row.id} value={row.id}>{row.firstName} {row.lastName} — {row.rut}</MenuItem>)}
+                {teachers.rows.filter(row => row.status === "ACTIVO").map(row => <MenuItem key={row.id} value={row.id}>{row.firstName} {row.lastName} — {row.rut}</MenuItem>)}
             </TextField>}
             {(!form.id || editField === "capacity") && <TextField required type="number" label="Capacidad" value={form.capacity} slotProps={{ htmlInput: { min: 1, max: 60, step: 1 } }} onChange={event => setForm({ ...form, capacity: event.target.value })} />}
             {(!form.id || editField === "blocks") && <>

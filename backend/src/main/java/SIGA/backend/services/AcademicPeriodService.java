@@ -111,14 +111,14 @@ public class AcademicPeriodService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El año academico no es valido");
         }
 
-        // validar semestre
+        // Validates the semester
         if (period.getSemester() == null || period.getSemester() < 1 || period.getSemester() > 2) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El semestre debe ser 1 o 2");
         }
     }
 
 
-    // revisar si tiene informacion academica
+    // Checks if the period has academic information
     private boolean hasAcademicInformation(Long periodId) {
         return sectionRepository.existsByAcademicPeriodId(periodId) ||
                 enrollmentRepository.existsByAcademicPeriodId(periodId) ||
@@ -127,7 +127,7 @@ public class AcademicPeriodService {
 
 
     // validate grades before closing academic period
-    private void validatePendingGrades(Long periodId) {
+    private void validateEnrollmentsForClosing(Long periodId) {
 
         List<EnrollmentEntity> enrollments = enrollmentRepository.findByAcademicPeriodId(periodId);
 
@@ -272,15 +272,15 @@ public class AcademicPeriodService {
     @Transactional 
     public AcademicPeriodResponseDTO createAcademicPeriod(AcademicPeriodRequestDTO period) {
         
-        // validar la informacion academica
+        // Validates the academic information
         validateAcademicPeriodData(period);
 
-        // como la informacion esta bien continuamos 
+        // Uses the validated academic period data 
         Integer year = period.getYear();
         Integer semester = period.getSemester();
         String code = year + "-" + semester;
 
-        // revisar que no se este duplicando
+        // Checks for a duplicate academic period
         if (academicPeriodRepository.findByYearAndSemester(year, semester).isPresent() ||
             academicPeriodRepository.findByCode(code).isPresent()) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un periodo academico con ese año y semestre");
@@ -303,28 +303,28 @@ public class AcademicPeriodService {
 
         AcademicPeriodEntity current = findAcademicPeriodById(id);
 
-        // validar informacion 
+        // Validates the information 
         validateAcademicPeriodData(period);
 
-        // no poder acctualizar periodos cerrados
+        // Prevents updates to closed periods
         if (current.getStatus() == AcademicPeriodStatus.CERRADO) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puede modificar un periodo cerrado");
         }
 
-        // si todo esta bien continuamos 
+        // Uses the validated academic period data 
         Integer year = period.getYear();
         Integer semester = period.getSemester();
         String code = year + "-" + semester;
 
-        // ver si hay cambios en el año o semestre
+        // Checks if the year or semester changed
         boolean changes = !current.getYear().equals(year) || !current.getSemester().equals(semester);
 
-        // no hacer cambios si hay informacion academica 
+        // Prevents changes when academic information exists 
         if (changes && hasAcademicInformation(id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puede modificar un periodo academico que cuenta con informacion");
         }
 
-        // revisar que no se este duplicando
+        // Checks for a duplicate academic period
         academicPeriodRepository.findByCode(code).ifPresent(existing -> {
             if (!existing.getId().equals(id)) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un periodo academico con ese codigo");
@@ -346,12 +346,12 @@ public class AcademicPeriodService {
 
         AcademicPeriodEntity period = findAcademicPeriodById(id);
 
-        // no eliminar periodos cerrados 
+        // Prevents deleting closed periods 
         if (period.getStatus() == AcademicPeriodStatus.CERRADO) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puede eliminar un periodo cerrado");
         }
 
-        // ver que no tenga informacion 
+        // Checks that the period has no academic information 
         if (hasAcademicInformation(id)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puede eliminar un periodo con informacion");
         }
@@ -376,11 +376,10 @@ public class AcademicPeriodService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El periodo academico ya esta cerrado");
         }
 
-        // Selection verification is not a prerequisite for academic closing.
         List<PeriodMatriculationEntity> matriculations = periodMatriculationRepository.findByAcademicPeriodId(id);
 
         // verify all active enrollments have grades
-        validatePendingGrades(id);
+        validateEnrollmentsForClosing(id);
 
         // update academic status of each student
         for (PeriodMatriculationEntity matriculation : matriculations) {
