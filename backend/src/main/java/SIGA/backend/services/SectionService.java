@@ -353,7 +353,7 @@ public class SectionService {
         // get active enrollments
         List<EnrollmentEntity> enrollments = enrollmentRepository.findBySectionIdAndStatus(sectionId, EnrollmentStatus.ACTIVO);
 
-        return enrollments.stream().map(enrollment -> new SectionStudentResponseDTO(enrollment.getStudent())).toList();
+        return enrollments.stream().map(SectionStudentResponseDTO::new).toList();
     }
 
 

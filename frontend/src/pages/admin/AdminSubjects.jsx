@@ -26,6 +26,10 @@ function AdminSubjects() {
     const restrictionsLoaded = !sections.loading && !sections.error && !enrollments.loading && !enrollments.error;
     const canEdit = row => restrictionsLoaded && !hasHistory(row.id) && !plans.loading && !plans.error;
     const hoursReadOnly = Boolean(form?.id && editField === "hours" && (!canEdit(form) || hasSections(form.id)));
+    const editNotice = !form?.id ? "" : !restrictionsLoaded ? "No se pudieron comprobar las inscripciones y secciones. La edición permanece bloqueada hasta completar esas consultas."
+        : hasHistory(form.id) ? "Esta asignatura tiene inscripciones registradas y su información académica está protegida: no admite edición. Las horas TEL pueden consultarse."
+        : plans.loading || plans.error ? "La edición no está disponible mientras no se pueda consultar el plan de estudio."
+        : hasSections(form.id) ? "Las horas TEL no se pueden editar porque existen secciones asociadas. Los demás campos permitidos conservan su edición." : "";
     const prerequisiteName = id => {
         const subject = subjects.rows.find(row => row.id === id);
         return subject ? `${subject.code} — ${subject.name}` : `ID ${id}`;
@@ -72,7 +76,7 @@ function AdminSubjects() {
         }} editOptions={form.id ? [
             { value: "code", label: "Código" }, { value: "name", label: "Nombre" }, { value: "sct", label: "SCT" },
             { value: "prerequisiteIds", label: "Prerrequisitos" }, { value: "hours", label: canEdit(form) && !hasSections(form.id) ? "Horas TEL" : "Horas TEL (consulta)" }
-        ].map(option => ({ ...option, disabled: option.value === "hours" ? !restrictionsLoaded : !canEdit(form) || Boolean(option.disabled) })) : undefined} selectedOption={editField} onSelectOption={setEditField} recordEndpoint={form.id ? `/subjects/${form.id}` : undefined} onLoadRecord={setForm} onRemove={() => setRemove(form)} readOnly={hoursReadOnly} removeDisabled={!restrictionsLoaded || hasSections(form.id) || subjects.rows.some(subject => subject.prerequisiteIds.includes(form.id))}>
+        ].map(option => ({ ...option, disabled: option.value === "hours" ? !restrictionsLoaded : !canEdit(form) || Boolean(option.disabled) })) : undefined} selectedOption={editField} onSelectOption={setEditField} recordEndpoint={form.id ? `/subjects/${form.id}` : undefined} onLoadRecord={setForm} onRemove={() => setRemove(form)} readOnly={hoursReadOnly} editNotice={editNotice} removeDisabled={!restrictionsLoaded || hasSections(form.id) || subjects.rows.some(subject => subject.prerequisiteIds.includes(form.id))}>
             {(!form.id || editField === "code") && <TextField required label="Código" value={form.code} slotProps={{ htmlInput: { maxLength: 20 } }} onChange={event => setForm({ ...form, code: event.target.value })} />}
             {(!form.id || editField === "name") && <TextField required label="Nombre" value={form.name} slotProps={{ htmlInput: { maxLength: 100 } }} onChange={event => setForm({ ...form, name: event.target.value })} />}
             {!form.id && <TextField required select label="Plan de estudio" value={form.studyPlanId} onChange={event => setForm({ ...form, studyPlanId: event.target.value, prerequisiteIds: [] })}>

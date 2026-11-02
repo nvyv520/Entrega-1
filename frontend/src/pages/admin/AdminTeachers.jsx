@@ -4,7 +4,7 @@ import http from "../../http-common";
 import { normalizePersonField, preparePersonFields } from "../../services/adminPersonValidation";
 import AdminTable from "../../components/admin/AdminTable";
 import { AdminForm, AdminQuery } from "../../components/admin/AdminDialog";
-import { filterValues, matchesFilter, matchesSearch, saveAdminFields, useAdminRecords } from "../../services/adminAcademic";
+import { matchesFilter, matchesSearch, saveAdminFields, useAdminRecords } from "../../services/adminAcademic";
 
 const fields = [["rut", "RUT", 12], ["firstName", "Nombre", 100], ["lastName", "Apellido", 100], ["email", "Correo", 300], ["professionalTitle", "Título profesional", 150], ["academicDegree", "Grado académico", 150]];
 
@@ -39,7 +39,7 @@ function AdminTeachers() {
             <TextField size="small" label="Buscar por RUT, nombre, apellido o correo" value={search} onChange={event => setSearch(event.target.value)} sx={{ width: 320 }} />
             <TextField size="small" select label="Estado" value={status} onChange={event => setStatus(event.target.value)} sx={{ width: 180 }}>
                 <MenuItem value="">Todos</MenuItem>
-                {filterValues(teachers.rows, "status", status).map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}
+                {["ACTIVA", "INACTIVA"].map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}
             </TextField>
             <Button size="small" onClick={() => { setSearch(""); setStatus(""); }}>Limpiar filtros</Button>
             <Button variant="contained" onClick={() => { setFieldErrors({}); setForm(Object.fromEntries(fields.map(([field]) => [field, ""]))); }}>Registrar docente</Button>

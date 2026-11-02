@@ -66,3 +66,22 @@ export const studentNavigationSx = {
         fontSize: "15px"
     }
 };
+
+// Scoped to weekly schedules; keep general academic tables unchanged.
+export const studentScheduleSx = {
+    "&&&": {
+        border: "1px solid #B8C6D8"
+    },
+    "&& .MuiTable-root .MuiTableRow-root > .MuiTableCell-root": {
+        borderTop: 0,
+        borderLeft: 0,
+        borderRight: "1px solid #B8C6D8",
+        borderBottom: "1px solid #B8C6D8"
+    },
+    "&& .MuiTable-root .MuiTableRow-root > .MuiTableCell-root:last-child": {
+        borderRight: 0
+    },
+    "&& .MuiTable-root .MuiTableBody-root .MuiTableRow-root:last-child > .MuiTableCell-root": {
+        borderBottom: 0
+    }
+};

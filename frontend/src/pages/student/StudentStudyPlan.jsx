@@ -60,7 +60,7 @@ function getSubjectStatus(subject, history, currentSubjectIds) {
 const statusStyles = {
     approved: {
         label: "Aprobada",
-        color: "var(--approved-color)"
+        color: "#2F6B4F"
     },
     "in-progress": {
         label: "Cursando",
@@ -138,8 +138,6 @@ function StudentStudyPlan() {
                     const selection = selectionResult.data;
                     if (!selection.period) {
                         message = "No hay un período académico abierto. Se muestran los estados del historial y los prerrequisitos.";
-                    } else if (!selection.verified) {
-                        message = `La selección del período ${selection.period.code} está pendiente de verificación. Las inscripciones aún no se muestran como Cursando.`;
                     }
                     const sectionIds = new Set(selection.enrollments.map(enrollment => Number(enrollment.sectionId)));
                     selection.sections.filter(section => sectionIds.has(Number(section.id)))
@@ -271,6 +269,7 @@ function StudentStudyPlan() {
                                         title={statusStyles[status].label}
                                         sx={{
                                             bgcolor: statusStyles[status].color,
+                                            color: status === "approved" ? "#FFFFFF" : "inherit",
                                             border: "1px solid var(--border-color)",
                                             borderRadius: "10px",
                                             p: 1.5,

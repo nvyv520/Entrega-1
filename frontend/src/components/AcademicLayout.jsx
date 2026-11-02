@@ -6,6 +6,7 @@ import AppHeader from "./AppHeader";
 import NavigationMenu from "./NavigationMenu";
 import { studentContentSx, studentNavigationSx } from "../styles/studentContent";
 import { adminContentSx } from "../styles/adminContent";
+import { teacherContentSx } from "../styles/teacherContent";
 import PropTypes from "prop-types";
 
 function AcademicLayout({
@@ -19,13 +20,15 @@ function AcademicLayout({
 
     const navigate = useNavigate();
     const location = useLocation();
+    const teacherDetail = role === "Docente" && /^\/teacher\/sections\/\d+\/(grades|students)$/.test(location.pathname);
+    const selectedPath = teacherDetail ? `/teacher/${location.pathname.split("/").pop()}` : location.pathname;
 
     return (
         <Box
             sx={{
                 minHeight: "100vh",
                 backgroundColor: "var(--background-color)",
-                ...(["Estudiante", "Administrador"].includes(role) ? studentNavigationSx : {})
+                ...(["Estudiante", "Administrador", "Docente"].includes(role) ? studentNavigationSx : {})
             }}
         >
             <AppHeader
@@ -37,7 +40,7 @@ function AcademicLayout({
 
             <NavigationMenu
                 items={items}
-                selected={location.pathname}
+                selected={selectedPath}
                 onSelect={(path) => navigate(path)}
             />
 
@@ -47,7 +50,7 @@ function AcademicLayout({
                     width: "100%",
                     px: 4,
                     py: 3,
-                    ...(role === "Administrador" ? adminContentSx : role === "Estudiante" ? studentContentSx : {})
+                    ...(role === "Administrador" ? adminContentSx : role === "Estudiante" ? studentContentSx : role === "Docente" ? teacherContentSx : {})
                 }}
             >
                 {children}

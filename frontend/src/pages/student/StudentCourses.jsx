@@ -17,6 +17,7 @@ import {
 
 import subjectService from "../../services/subject.service";
 import { getCurrentSelection, studentErrorMessage } from "../../services/studentAcademic";
+import { studentScheduleSx } from "../../styles/studentContent";
 
 
 
@@ -135,10 +136,8 @@ function StudentCourses() {
 
             {courses.length === 0 ? (
                 
-            <Alert severity="info" sx={{ mb: 3 }}>
-                {periodCode && !verified
-                    ? "Tu selección está pendiente de verificación. Verifícala en Inscripción para ver tus cursos actuales."
-                    : "No tienes cursos verificados en el período académico actual."}
+            (!periodCode || verified) && <Alert severity="info" sx={{ mb: 3 }}>
+                No tienes cursos verificados en el período académico actual.
             </Alert>
             
             ) : (
@@ -215,7 +214,7 @@ function StudentCourses() {
                     </Typography>
 
                     {/* Weekly schedule */}
-                    <TableContainer>
+                    <TableContainer sx={studentScheduleSx}>
                         <Table
                             size="small"
                             sx={{ tableLayout: "fixed" }}
@@ -283,11 +282,7 @@ function StudentCourses() {
                                                         p: 1,
                                                         bgcolor: course
                                                             ? "var(--in-progress-color)"
-                                                            : "#FFFFFF",
-                                                        borderRight:
-                                                            "1px solid var(--border-color)",
-                                                        borderBottom:
-                                                            "1px solid var(--border-color)"
+                                                            : "#FFFFFF"
                                                     }}
                                                 >
                                                     {course && (

@@ -9,7 +9,7 @@ import AdminTable from "./AdminTable";
 import http from "../../http-common";
 
 // Mounted only while open, so each operation starts with clean errors and state.
-export function AdminForm({ title, children, onClose, onSubmit, submitLabel = "Guardar", editOptions, selectedOption, onSelectOption, recordEndpoint, onLoadRecord, onRemove, removeDisabled = false, readOnly = false }) {
+export function AdminForm({ title, children, onClose, onSubmit, submitLabel = "Guardar", editOptions, selectedOption, onSelectOption, recordEndpoint, onLoadRecord, onRemove, removeDisabled = false, readOnly = false, submitDisabled = false, editNotice = "" }) {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState(false);
@@ -34,7 +34,7 @@ export function AdminForm({ title, children, onClose, onSubmit, submitLabel = "G
 
     const submit = async event => {
         event.preventDefault();
-        if (saving || choosing || success || readOnly) return;
+        if (saving || choosing || success || readOnly || submitDisabled) return;
         setSaving(true);
         setError("");
         try {
@@ -55,6 +55,7 @@ export function AdminForm({ title, children, onClose, onSubmit, submitLabel = "G
                 <Stack spacing={2} sx={{ pt: 1 }}>
                     {error && <Alert severity="error">{error}</Alert>}
                     {success ? <Alert severity="success">Cambios guardados correctamente.</Alert> : choosing ? <>
+                        {editNotice && <Alert severity="info">{editNotice}</Alert>}
                         {editOptions.map(option => (
                             <Button key={option.value} variant="outlined" disabled={saving || option.disabled} onClick={() => selectOption(option.value)}>{option.label}</Button>
                         ))}
@@ -71,7 +72,7 @@ export function AdminForm({ title, children, onClose, onSubmit, submitLabel = "G
                 {editOptions && selectedOption && !success
                     ? <Button disabled={saving} onClick={() => { setError(""); onSelectOption(""); }}>Volver</Button>
                     : <Button disabled={saving} onClick={onClose}>{success ? "Cerrar" : "Cancelar"}</Button>}
-                {!choosing && !success && !readOnly && <Button disabled={saving} type="submit" color={submitLabel === "Confirmar eliminación" ? "error" : "primary"} variant="contained">{saving ? "Guardando…" : submitLabel}</Button>}
+                {!choosing && !success && !readOnly && <Button disabled={saving || submitDisabled} type="submit" color={submitLabel === "Confirmar eliminación" ? "error" : "primary"} variant="contained">{saving ? "Guardando…" : submitLabel}</Button>}
             </DialogActions>
         </form>
     </Dialog>;
@@ -83,19 +84,19 @@ AdminForm.propTypes = {
     editOptions: PropTypes.arrayOf(PropTypes.shape({ value: PropTypes.string.isRequired, label: PropTypes.string.isRequired, disabled: PropTypes.bool })),
     selectedOption: PropTypes.string, onSelectOption: PropTypes.func,
     recordEndpoint: PropTypes.string, onLoadRecord: PropTypes.func,
-    onRemove: PropTypes.func, removeDisabled: PropTypes.bool, readOnly: PropTypes.bool
+    onRemove: PropTypes.func, removeDisabled: PropTypes.bool, readOnly: PropTypes.bool, submitDisabled: PropTypes.bool, editNotice: PropTypes.string
 };
 
-export function AdminQuery({ title, endpoint, columns, onClose }) {
+export function AdminQuery({ title, endpoint, columns, onClose, sortRows }) {
     const records = useAdminRecords(endpoint);
     return <Dialog open onClose={onClose} fullWidth maxWidth="lg" sx={adminContentSx}>
         <DialogTitle>{title}</DialogTitle>
-        <DialogContent><AdminTable title={title} records={records} columns={columns} /></DialogContent>
+        <DialogContent><AdminTable title={title} records={sortRows ? { ...records, rows: [...records.rows].sort(sortRows) } : records} columns={columns} /></DialogContent>
         <DialogActions><Button onClick={onClose}>Cerrar</Button></DialogActions>
     </Dialog>;
 }
 
 AdminQuery.propTypes = {
     title: PropTypes.string.isRequired, endpoint: PropTypes.string.isRequired,
-    columns: PropTypes.array.isRequired, onClose: PropTypes.func.isRequired
+    columns: PropTypes.array.isRequired, onClose: PropTypes.func.isRequired, sortRows: PropTypes.func
 };

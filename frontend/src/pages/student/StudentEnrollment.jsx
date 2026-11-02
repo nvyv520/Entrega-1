@@ -17,6 +17,7 @@ import {
 
 import enrollmentService from "../../services/enrollment.service";
 import { latestAcademicPeriod, studentErrorMessage } from "../../services/studentAcademic";
+import { studentScheduleSx } from "../../styles/studentContent";
 
 const days = [
     { code: "L", label: "Lunes" },
@@ -466,7 +467,7 @@ function StudentEnrollment() {
                         Horario de inscripción
                     </Typography>
 
-                    <TableContainer>
+                    <TableContainer sx={studentScheduleSx}>
                         <Table size="small" sx={{ tableLayout: "fixed" }}>
                             <TableHead>
                                 <TableRow>
@@ -527,11 +528,7 @@ function StudentEnrollment() {
                                                         p: 1,
                                                         bgcolor: course
                                                             ? "var(--in-progress-color)"
-                                                            : "#FFFFFF",
-                                                        borderRight:
-                                                            "1px solid var(--border-color)",
-                                                        borderBottom:
-                                                            "1px solid var(--border-color)"
+                                                            : "#FFFFFF"
                                                     }}
                                                 >
                                                     {course && (

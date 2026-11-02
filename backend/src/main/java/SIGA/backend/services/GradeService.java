@@ -8,6 +8,7 @@ import SIGA.backend.entities.AcademicPeriodStatus;
 import SIGA.backend.entities.AcademicPeriodEntity;
 import SIGA.backend.entities.TeacherEntity;
 import SIGA.backend.entities.StudentEntity;
+import SIGA.backend.entities.Status;
 
 import SIGA.backend.repositories.GradeRepository;
 import SIGA.backend.repositories.EnrollmentRepository;
@@ -144,6 +145,9 @@ public class GradeService {
         // revisar el estado del periodo academico
         if (enrollment.getAcademicPeriod().getStatus() != AcademicPeriodStatus.ABIERTO) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El periodo academico debe estar abierto");
+        }
+        if (enrollment.getSection().getStatus() != Status.ACTIVA) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "La seccion debe estar activa para registrar o modificar calificaciones");
         }
     }
 

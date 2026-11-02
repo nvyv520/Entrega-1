@@ -4,7 +4,7 @@ import http from "../../http-common";
 import { normalizePersonField, preparePersonFields } from "../../services/adminPersonValidation";
 import AdminTable from "../../components/admin/AdminTable";
 import { AdminForm, AdminQuery } from "../../components/admin/AdminDialog";
-import { filterValues, matchesFilter, matchesSearch, saveAdminFields, useAdminRecords } from "../../services/adminAcademic";
+import { matchesFilter, matchesSearch, saveAdminFields, useAdminRecords } from "../../services/adminAcademic";
 
 const fields = [["rut", "RUT", 12], ["firstName", "Nombre", 100], ["lastName", "Apellido", 100], ["email", "Correo", 300]];
 
@@ -60,7 +60,7 @@ function AdminStudents() {
             </TextField>
             <TextField size="small" select label="Estado académico" value={status} onChange={event => setStatus(event.target.value)} sx={{ width: 200 }}>
                 <MenuItem value="">Todos</MenuItem>
-                {filterValues(students.rows, "status", status).map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}
+                {[["REGULAR", "REGULAR"], ["POSTERGACION", "POSTERGACIÓN"], ["RETIRO_TEMPORAL", "RETIRO TEMPORAL"], ["EGRESADO", "EGRESADO"], ["ELIMINADO", "ELIMINADO"]].map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
             </TextField>
             <Button size="small" onClick={() => { setSearch(""); setCareerId(""); setStudyPlanId(""); setStatus(""); }}>Limpiar filtros</Button>
             <Button variant="contained" disabled={!selectorsReady} onClick={() => { setFieldErrors({}); setForm({ rut: "", firstName: "", lastName: "", email: "", careerId: "", studyPlanId: "" }); }}>Registrar estudiante</Button>

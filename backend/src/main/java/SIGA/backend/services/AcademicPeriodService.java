@@ -10,6 +10,8 @@ import SIGA.backend.entities.EnrollmentStatus;
 import SIGA.backend.entities.GradeEntity;
 import SIGA.backend.entities.GradeResult;
 import SIGA.backend.entities.PeriodMatriculationEntity;
+import SIGA.backend.entities.SectionEntity;
+import SIGA.backend.entities.Status;
 
 import SIGA.backend.repositories.AcademicPeriodRepository;
 import SIGA.backend.repositories.SectionRepository;
@@ -385,6 +387,13 @@ public class AcademicPeriodService {
             StudentEntity student = matriculation.getStudent();
             updateStudentAcademicStatus(student, id);
         }
+
+        // Inactivate sections in the same transaction as the academic closing.
+        List<SectionEntity> sections = sectionRepository.findByAcademicPeriodId(id);
+        for (SectionEntity section : sections) {
+            section.setStatus(Status.INACTIVA);
+        }
+        sectionRepository.saveAll(sections);
 
         // close academic period
         period.setStatus(AcademicPeriodStatus.CERRADO);

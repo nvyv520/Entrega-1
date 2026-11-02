@@ -24,6 +24,10 @@ import AdminStudents from "./pages/admin/AdminStudents";
 import AdminPeriods from "./pages/admin/AdminPeriods";
 import AdminSections from "./pages/admin/AdminSections";
 import AdminEnrollments from "./pages/admin/AdminEnrollments";
+import TeacherAcademicProvider from "./components/teacher/TeacherAcademicProvider";
+import TeacherSections from "./pages/teacher/TeacherSections";
+import TeacherSectionView from "./pages/teacher/TeacherSectionView";
+import TeacherProfile from "./pages/teacher/TeacherProfile";
 
 // Navigation options for each role
 const navigationItems = {
@@ -42,10 +46,10 @@ const navigationItems = {
         { label: "Estudiantes", path: "/teacher/students" }
     ],
     STUDENT: [
+        { label: "Mis cursos", path: "/student/courses" },
         { label: "Inscripción", path: "/student/enrollments" },
         { label: "Plan de estudio", path: "/student/study-plan" },
         { label: "Mis calificaciones", path: "/student/grades" },
-        { label: "Mis cursos", path: "/student/courses" },
         { label: "Historial académico", path: "/student/history" }
     ]
 };
@@ -57,52 +61,13 @@ const profileColumns = [
     ["status", "Estado"]
 ];
 
-const gradeColumns = [
-    ["enrollmentId", "Inscripción"],
-    ["finalGrade", "Nota final"],
-    ["result", "Resultado"]
-];
-
-const sectionColumns = [
-    ["id", "Sección"],
-    ["subjectId", "Asignatura"],
-    ["academicPeriodId", "Período"],
-    ["blocks", "Bloques"],
-    ["capacity", "Cupos totales"],
-    ["enrolledStudents", "Inscritos"]
-];
-
-// Details of a teacher's assigned section
-function TeacherSectionView() {
-
+// Validate the resource before rendering the shared teacher detail.
+function TeacherSectionRoute() {
     const { sectionId, resource } = useParams();
-
-    if (!["students", "grades"].includes(resource) ||
-        !/^\d+$/.test(sectionId)) {
+    if (!["students", "grades"].includes(resource) || !/^\d+$/.test(sectionId)) {
         return <Navigate to="/access-denied" replace />;
     }
-
-    const students = resource === "students";
-
-    return (
-        <AcademicView
-            title={`${students ? "Estudiantes" : "Calificaciones"} de la sección ${sectionId}`}
-            endpoint={
-                students
-                    ? `/sections/me/${sectionId}/students`
-                    : `/grades/me/sections/${sectionId}`
-            }
-            columns={
-                students
-                    ? [
-                        ["id", "ID"],
-                        ["firstName", "Nombre"],
-                        ["lastName", "Apellido"]
-                    ]
-                    : gradeColumns
-            }
-        />
-    );
+    return <TeacherSectionView grades={resource === "grades"} />;
 }
 
 function App() {
@@ -134,7 +99,7 @@ function App() {
     const defaultPath = {
         ADMIN: "/admin",
         TEACHER: "/teacher",
-        STUDENT: "/student/enrollments"
+        STUDENT: "/student/courses"
     }[role] || "/access-denied";
 
     const openProfile = () => {
@@ -178,53 +143,13 @@ function App() {
 
                 {/* Teacher */}
                 <Route element={<ProtectedRoute roles={["TEACHER"]} />}>
-
-                    <Route
-                        path="/teacher"
-                        element={
-                            <AcademicView
-                                title="Mis secciones"
-                                endpoint="/sections/me"
-                                columns={sectionColumns}
-                                sectionLinks
-                            />
-                        }
-                    />
-
-                    <Route
-                        path="/teacher/sections/:sectionId/:resource"
-                        element={<TeacherSectionView />}
-                    />
-
-                    <Route
-                        path="/teacher/profile"
-                        element={
-                            <AcademicView
-                                title="Mi perfil"
-                                endpoint="/teachers/me"
-                                columns={profileColumns}
-                            />
-                        }
-                    />
-
-                    <Route
-                        path="/teacher/grades"
-                        element={
-                            <Alert severity="info">
-                                Aquí incorporaremos la consulta y el registro de calificaciones.
-                            </Alert>
-                        }
-                    />
-
-                    <Route
-                        path="/teacher/students"
-                        element={
-                            <Alert severity="info">
-                                Aquí mostraremos los estudiantes de las secciones asignadas.
-                            </Alert>
-                        }
-                    />
-
+                    <Route element={<TeacherAcademicProvider />}>
+                        <Route path="/teacher" element={<TeacherSections />} />
+                        <Route path="/teacher/sections/:sectionId/:resource" element={<TeacherSectionRoute />} />
+                        <Route path="/teacher/profile" element={<TeacherProfile />} />
+                        <Route path="/teacher/grades" element={<TeacherSectionView grades />} />
+                        <Route path="/teacher/students" element={<TeacherSectionView />} />
+                    </Route>
                 </Route>
 
                 {/* Student */}

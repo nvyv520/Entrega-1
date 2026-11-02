@@ -3,7 +3,7 @@ import { Alert, Button, MenuItem, Stack, Tab, Tabs, TextField, Typography } from
 import http from "../../http-common";
 import AdminTable from "../../components/admin/AdminTable";
 import { AdminForm, AdminQuery } from "../../components/admin/AdminDialog";
-import { filterValues, matchesFilter, matchesSearch, saveAdminFields, useAdminRecords } from "../../services/adminAcademic";
+import { matchesFilter, matchesSearch, saveAdminFields, useAdminRecords } from "../../services/adminAcademic";
 
 function AdminCareers() {
     const careers = useAdminRecords("/careers");
@@ -59,20 +59,21 @@ function AdminCareers() {
             </TextField>}
             {tab === 0 ? (
                 <TextField size="small" select label="Estado" value={careerStatus} onChange={event => setCareerStatus(event.target.value)} sx={{ width: 180 }}>
-                    <MenuItem value="">Todos</MenuItem>
-                    {filterValues(careers.rows, "status", careerStatus).map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}
+                    <MenuItem value="">Todas</MenuItem>
+                    {["ACTIVA", "INACTIVA"].map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}
                 </TextField>
             ) : (
                 <TextField size="small" select label="Vigencia" value={planStatus} onChange={event => setPlanStatus(event.target.value)} sx={{ width: 180 }}>
                     <MenuItem value="">Todos</MenuItem>
-                    {filterValues(plans.rows, "status", planStatus).map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}
+                    <MenuItem value="VIGENTE">VIGENTE</MenuItem>
+                    <MenuItem value="NO_VIGENTE">NO VIGENTE</MenuItem>
                 </TextField>
             )}
             <Button size="small" onClick={() => { setSearch(""); if (tab === 0) setCareerStatus(""); else { setCareerId(""); setPlanStatus(""); } }}>Limpiar filtros</Button>
             <Button variant="contained" onClick={() => setForm(tab === 0 ? { code: "", name: "", description: "" } : { identifier: "", careerId })}>Crear {tab === 0 ? "carrera" : "plan"}</Button>
         </Stack>
         {tab === 1 && careers.error && <Alert severity="error" action={<Button onClick={careers.reload}>Reintentar</Button>}>{careers.error}</Alert>}
-        <AdminTable title={title} filtered records={{ ...records, rows }} columns={tab === 0 ? [["code", "Código"], ["name", "Carrera"], ["description", "Descripción"], ["duration", "Duración"], ["status", "Estado"], ["plans", "Planes", row => <Button onClick={() => { setCareerId(row.id); setTab(1); setSearch(""); setPlanStatus(""); }}>Ver</Button>]] : [["identifier", "Identificador"], ["careerId", "Carrera", row => careers.rows.find(career => career.id === row.careerId)?.name || row.careerId], ["status", "Vigencia"], ["subjects", "Asignaturas", row => <Button onClick={() => setQuery({ title: `Asignaturas del plan ${row.identifier}`, endpoint: `/subjects/study-plan/${row.id}`, columns: [["code", "Código"], ["name", "Asignatura"], ["semester", "Semestre"], ["sct", "SCT"], ["prerequisiteIds", "Prerrequisitos (ID)"]] })}>Ver</Button>]]}
+        <AdminTable title={title} filtered records={{ ...records, rows }} columns={tab === 0 ? [["code", "Código"], ["name", "Carrera"], ["description", "Descripción"], ["duration", "Duración"], ["status", "Estado"], ["plans", "Planes", row => <Button onClick={() => { setCareerId(row.id); setTab(1); setSearch(""); setPlanStatus(""); }}>Ver</Button>]] : [["identifier", "Identificador"], ["careerId", "Carrera", row => careers.rows.find(career => career.id === row.careerId)?.name || row.careerId], ["status", "Vigencia"], ["subjects", "Asignaturas", row => <Button onClick={() => setQuery({ title: `Asignaturas del plan ${row.identifier}`, endpoint: `/subjects/study-plan/${row.id}`, sortRows: (first, second) => Number(first.semester) - Number(second.semester) || first.code.localeCompare(second.code, "es-CL"), columns: [["code", "Código"], ["name", "Asignatura"], ["semester", "Semestre"], ["sct", "SCT"], ["prerequisiteIds", "Prerrequisitos (ID)"]] })}>Ver</Button>]]}
             actions={row => <>
                 <Button onClick={() => { setEditField(""); setForm({ ...row }); }}>Editar</Button>
             </>} />

@@ -13,6 +13,7 @@ function AdminPeriods() {
     const [status, setStatus] = useState("");
     const [form, setForm] = useState(null);
     const [closing, setClosing] = useState(null);
+    const [closingCode, setClosingCode] = useState("");
     const [query, setQuery] = useState(null);
     const [message, setMessage] = useState("");
 
@@ -40,7 +41,7 @@ function AdminPeriods() {
             <Button variant="contained" onClick={() => setForm({ year: "", semester: 1 })}>Crear período</Button>
         </Stack>
         <AdminTable title="Períodos académicos" filtered records={{ ...periods, rows }} columns={[["code", "Código"], ["year", "Año"], ["semester", "Semestre"], ["status", "Estado"], ["sections", "Secciones", row => <Button onClick={() => setQuery({ title: `Secciones del período ${row.code}`, endpoint: `/sections/academic-period/${row.id}`, columns: [["id", "Sección"], ["subjectId", "Asignatura (ID)"], ["teacherName", "Docente"], ["blocks", "Bloques"], ["capacity", "Capacidad"], ["enrolledStudents", "Inscritos"], ["status", "Estado"]] })}>Ver</Button>]]} actions={row => <>
-            {row.status === "ABIERTO" && <Button color="error" onClick={() => setClosing(row)}>Cerrar período</Button>}
+            {row.status === "ABIERTO" && <Button color="error" onClick={() => { setClosingCode(""); setClosing(row); }}>Cerrar período</Button>}
         </>} />
         {form && <AdminForm title="Crear período académico" onClose={() => setForm(null)} onSubmit={async () => { await http.post("/academic-periods", { year: Number(form.year), semester: Number(form.semester) }); periods.reload(); setMessage("Período creado correctamente."); }}>
             <TextField required label="Año" type="number" value={form.year} slotProps={{ htmlInput: { min: 2000, step: 1 } }} onChange={event => setForm({ ...form, year: event.target.value })} />
@@ -48,8 +49,17 @@ function AdminPeriods() {
                 <MenuItem value={1}>1</MenuItem><MenuItem value={2}>2</MenuItem>
             </TextField>
         </AdminForm>}
-        {closing && <AdminForm title={`Cerrar período ${closing.code}`} submitLabel="Confirmar cierre" onClose={() => setClosing(null)} onSubmit={async () => { await http.patch(`/academic-periods/${closing.id}/close`); periods.reload(); setMessage("Período cerrado correctamente."); }}>
-            <Alert severity="warning">El backend verificará las calificaciones pendientes y actualizará los estados académicos que correspondan. El cierre impide nuevas inscripciones y cambios en las secciones del período. No existe una operación de reapertura.</Alert>
+        {closing && <AdminForm title={`Cerrar período ${closing.year} — Semestre ${closing.semester}`} submitLabel="Confirmar cierre"
+            submitDisabled={closingCode !== closing.code || closing.status !== "ABIERTO"}
+            onClose={() => { setClosing(null); setClosingCode(""); }} onSubmit={async () => {
+                if (closingCode !== closing.code || closing.status !== "ABIERTO") throw new Error("Escribe el identificador exacto de un período abierto para confirmar el cierre.");
+                await http.patch(`/academic-periods/${closing.id}/close`);
+                periods.reload();
+                setMessage("Período cerrado correctamente.");
+            }}>
+            <Alert severity="warning">El cierre de {closing.code} es definitivo desde esta interfaz y bloquea inscripciones, cambios en secciones y registro o modificación de calificaciones.</Alert>
+            <TextField required label="Identificador del período" value={closingCode} autoComplete="off"
+                helperText={`Escribe exactamente ${closing.code} para habilitar Confirmar cierre.`} onChange={event => setClosingCode(event.target.value)} />
         </AdminForm>}
         {query && <AdminQuery {...query} onClose={() => setQuery(null)} />}
     </Stack>;
