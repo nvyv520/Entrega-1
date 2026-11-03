@@ -171,8 +171,13 @@ public class SectionService {
 
         int total = subject.getLaboratoryHours() + subject.getExerciseHours() + subject.getTheoryHours();
 
+        if (total % 2 != 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El total de " + total + " horas TEL no puede representarse exactamente mediante bloques completos de 2 horas");
+        }
+
+        // Blocks represent the total TEL; activities have no separate schedules.
         if (blocks.size() * 2 != total) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Los bloques horarios no correspndan a las horas TEL");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Las horas seleccionadas deben coincidir con las " + total + " horas TEL de la asignatura (" + total / 2 + " bloques de 2 horas)");
         }
     }
 
@@ -353,7 +358,9 @@ public class SectionService {
         // get active enrollments
         List<EnrollmentEntity> enrollments = enrollmentRepository.findBySectionIdAndStatus(sectionId, EnrollmentStatus.ACTIVO);
 
-        return enrollments.stream().map(SectionStudentResponseDTO::new).toList();
+        return enrollments.stream().filter(enrollment -> enrollmentRepository.isSelectionConfirmed(
+                enrollment.getStudent().getId(), enrollment.getAcademicPeriod().getId()))
+                .map(SectionStudentResponseDTO::new).toList();
     }
 
 

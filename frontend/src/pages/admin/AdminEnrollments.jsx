@@ -22,11 +22,12 @@ function AdminEnrollments() {
     const sectionName = row => {
         const subject = subjects.rows.find(subject => subject.id === row.subjectId);
         const period = periods.rows.find(period => period.id === row.academicPeriodId);
-        return `${row.id} — ${subject?.name || `Asignatura ${row.subjectId}`} — ${period?.code || row.academicPeriodId}`;
+        return `${row.code} — ${subject?.name || "Asignatura no disponible"} — ${period?.code || "Período no disponible"}`;
     };
     const rows = enrollments.rows.filter(row => matchesFilter(row.academicPeriodId, periodId) && matchesFilter(row.studentId, studentId)
         && matchesFilter(row.sectionId, sectionId) && matchesFilter(row.status, status)
         && matchesFilter(students.rows.find(student => student.id === row.studentId)?.careerId, careerId));
+    // Requires student records when the career filter is active
     const dependencies = careerId ? [students] : [];
 
     return <Stack spacing={3}>
@@ -53,14 +54,14 @@ function AdminEnrollments() {
             <Button size="small" onClick={() => { setPeriodId(""); setCareerId(""); setStudentId(""); setSectionId(""); setStatus(""); }}>Limpiar filtros</Button>
         </Stack>
         <AdminTable title="Inscripciones" filtered records={filteredRecords(enrollments, rows, dependencies)} columns={[
-            ["id", "ID"], ["studentId", "Estudiante", row => studentName(row.studentId)],
+            ["studentId", "Estudiante", row => studentName(row.studentId)],
             ["subjectId", "Asignatura", row => {
                 const section = sections.rows.find(section => section.id === row.sectionId);
                 const subject = subjects.rows.find(subject => subject.id === section?.subjectId);
-                return subject ? `${subject.code} — ${subject.name}` : section ? `ID ${section.subjectId}` : "No disponible";
+                return subject ? `${subject.code} — ${subject.name}` : "No disponible";
             }],
-            ["sectionId", "Sección"], ["academicPeriodId", "Período", row => periods.rows.find(period => period.id === row.academicPeriodId)?.code || row.academicPeriodId],
-            ["enrollmentDate", "Fecha"], ["status", "Estado"]
+            ["sectionId", "Sección", row => sections.rows.find(section => section.id === row.sectionId)?.code || "No disponible"], ["academicPeriodId", "Período", row => periods.rows.find(period => period.id === row.academicPeriodId)?.code || "No disponible"],
+            ["enrollmentDate", "Fecha"], ["status", "Estado"], ["confirmed", "Confirmación", row => row.confirmed ? "Confirmada" : "Provisional"]
         ]} />
     </Stack>;
 }

@@ -24,7 +24,7 @@ function AdminCareers() {
     
     const prerequisiteNames = (row, subjects) => row.prerequisiteIds.map(id => {
         const subject = subjects.find(subject => subject.id === id);
-        return subject ? `${subject.code} — ${subject.name}` : `ID ${id}`;
+        return subject ? `${subject.code} — ${subject.name}` : "No disponible";
     }).join(", ") || "Sin prerrequisitos";
 
     const rows = records.rows.filter(row => matchesSearch(row, search, tab === 0 ? ["code", "name"] : ["identifier"])
@@ -37,6 +37,7 @@ function AdminCareers() {
     };
 
     const save = async () => {
+        // Uses the status endpoint separately from the general record update
         if (form.id && editField === "status") {
             await http.patch(`${endpoint}/${form.id}/status`, null, { params: { status: form.status } });
             saved();
@@ -78,7 +79,7 @@ function AdminCareers() {
             <Button variant="contained" onClick={() => setForm(tab === 0 ? { code: "", name: "", description: "" } : { identifier: "", careerId })}>Crear {tab === 0 ? "carrera" : "plan"}</Button>
         </Stack>
         {tab === 1 && careers.error && <Alert severity="error" action={<Button onClick={careers.reload}>Reintentar</Button>}>{careers.error}</Alert>}
-        <AdminTable title={title} filtered records={{ ...records, rows }} columns={tab === 0 ? [["code", "Código"], ["name", "Carrera"], ["description", "Descripción"], ["duration", "Duración"], ["status", "Estado"], ["plans", "Planes", row => <Button onClick={() => { setCareerId(row.id); setTab(1); setSearch(""); setPlanStatus(""); }}>Ver</Button>]] : [["identifier", "Identificador"], ["careerId", "Carrera", row => careers.rows.find(career => career.id === row.careerId)?.name || row.careerId], ["status", "Vigencia"], ["subjects", "Asignaturas", row => <Button onClick={() => setQuery({ title: `Asignaturas del plan ${row.identifier}`, endpoint: `/subjects/study-plan/${row.id}`, sortRows: (first, second) => Number(first.semester) - Number(second.semester) || first.code.localeCompare(second.code, "es-CL"), columns: [["code", "Código"], ["name", "Asignatura"], ["semester", "Semestre"], ["sct", "SCT"], ["prerequisiteIds", "Prerrequisitos", prerequisiteNames]] })}>Ver</Button>]]}
+        <AdminTable title={title} filtered records={{ ...records, rows }} columns={tab === 0 ? [["code", "Código"], ["name", "Carrera"], ["description", "Descripción"], ["duration", "Duración"], ["status", "Estado"], ["plans", "Planes", row => <Button onClick={() => { setCareerId(row.id); setTab(1); setSearch(""); setPlanStatus(""); }}>Ver</Button>]] : [["identifier", "Identificador", row => `${row.identifier} (${row.careerCode})`], ["careerCode", "Carrera"], ["status", "Vigencia"], ["subjects", "Asignaturas", row => <Button onClick={() => setQuery({ title: `Asignaturas del plan ${row.identifier} (${row.careerCode})`, endpoint: `/subjects/study-plan/${row.id}`, sortRows: (first, second) => Number(first.semester) - Number(second.semester) || first.code.localeCompare(second.code, "es-CL"), columns: [["code", "Código"], ["name", "Asignatura"], ["semester", "Semestre"], ["sct", "SCT"], ["prerequisiteIds", "Prerrequisitos", prerequisiteNames]] })}>Ver</Button>]]}
             actions={row => <>
                 <Button onClick={() => { setEditField(""); setForm({ ...row }); }}>Editar</Button>
             </>} />
@@ -104,7 +105,7 @@ function AdminCareers() {
             </>}
         </AdminForm>}
         {remove && <AdminForm title={`Eliminar ${tab === 0 ? "carrera" : "plan de estudio"}`} submitLabel="Confirmar eliminación" onClose={() => setRemove(null)} onSubmit={async () => { await http.delete(`${endpoint}/${remove.id}`); saved(); setForm(null); }}>
-            <Alert severity="warning">¿Estás segura de que deseas eliminar {tab === 0 ? `la carrera ${remove.code} — ${remove.name}` : `el plan ${remove.identifier}`}? Esta acción es irreversible.</Alert>
+            <Alert severity="warning">¿Estás segura de que deseas eliminar {tab === 0 ? `la carrera ${remove.code} — ${remove.name}` : `el plan ${remove.identifier} (${remove.careerCode})`}? Esta acción es irreversible.</Alert>
         </AdminForm>}
         {query && <AdminQuery {...query} onClose={() => setQuery(null)} />}
     </Stack>;

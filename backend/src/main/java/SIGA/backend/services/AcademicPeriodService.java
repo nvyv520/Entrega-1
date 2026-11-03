@@ -26,6 +26,7 @@ import jakarta.persistence.LockModeType;
 
 import SIGA.backend.dtos.AcademicPeriodRequestDTO;
 import SIGA.backend.dtos.AcademicPeriodResponseDTO;
+import SIGA.backend.dtos.SectionResponseDTO;
 
 import lombok.RequiredArgsConstructor;
 
@@ -131,7 +132,7 @@ public class AcademicPeriodService {
 
         List<EnrollmentEntity> enrollments = enrollmentRepository.findByAcademicPeriodId(periodId);
 
-        Set<Long> pendingSections = new HashSet<>();
+        Set<String> pendingSections = new HashSet<>();
 
         for (EnrollmentEntity enrollment : enrollments) {
 
@@ -140,9 +141,15 @@ public class AcademicPeriodService {
                 continue;
             }
 
+            // Pending selections must be resolved without automatic cancellation.
+            if (!enrollmentRepository.isSelectionConfirmed(enrollment.getStudent().getId(), periodId)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "No se puede cerrar el periodo. Existen selecciones pendientes de confirmacion; deben verificarse o cancelarse mediante las operaciones existentes");
+            }
+
             // check if enrollment has grade
             if (!gradeRepository.existsByEnrollmentId(enrollment.getId())) {
-                pendingSections.add(enrollment.getSection().getId());
+                pendingSections.add(new SectionResponseDTO(enrollment.getSection()).getCode());
             }
         }
 
@@ -159,6 +166,10 @@ public class AcademicPeriodService {
 
         // ignore cancelled enrollments
         if (enrollment.getStatus() != EnrollmentStatus.ACTIVO) {
+            return false;
+        }
+
+        if (!enrollmentRepository.isSelectionConfirmed(enrollment.getStudent().getId(), enrollment.getAcademicPeriod().getId())) {
             return false;
         }
 

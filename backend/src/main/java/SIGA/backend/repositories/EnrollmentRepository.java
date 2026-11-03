@@ -14,6 +14,11 @@ import SIGA.backend.entities.EnrollmentStatus;
 @Repository 
 public interface EnrollmentRepository extends JpaRepository<EnrollmentEntity, Long> {
 
+    // Checks the persistent confirmation shared by the student's selection.
+    @Query("select (count(m) > 0) from PeriodMatriculationEntity m where m.student.id = :studentId " +
+            "and m.academicPeriod.id = :periodId and m.enrollmentConfirmed = true")
+    boolean isSelectionConfirmed(@Param("studentId") Long studentId, @Param("periodId") Long periodId);
+
     interface SectionEnrollmentCount {
         Long getSectionId();
         Long getTotal();

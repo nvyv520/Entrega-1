@@ -119,10 +119,11 @@ function StudentStudyPlan() {
                 ]);
 
                 if (active) {
-                    setStudyPlanCode(studyPlanResponse.data.identifier);
-                    setCareerName(careerResponse.data.name);
+                    setStudyPlanCode(`${studyPlanResponse.data.identifier} (${studyPlanResponse.data.careerCode})`);
+                    setCareerName(`${careerResponse.data.code} — ${careerResponse.data.name}`);
                 }
 
+                // Uses academic history and confirmed enrollments to determine subject status
                 const [subjectsResponse, historyResponse, selectionResult] = await Promise.all([
                     subjectService.getSubjectsByStudyPlan(studyPlanId),
                     subjectService.getCurrentStudentAcademicHistory(),

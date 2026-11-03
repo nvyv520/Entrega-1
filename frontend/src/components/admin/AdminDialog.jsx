@@ -22,6 +22,7 @@ export function AdminForm({ title, children, onClose, onSubmit, submitLabel = "G
         return child.props.children ? cloneElement(child, {}, visitFields(child.props.children, visit)) : child;
     });
 
+    // Validates enabled fields, including inputs inside nested form elements
     const validateFields = () => {
         const errors = {};
         visitFields(children, child => {
@@ -55,6 +56,7 @@ export function AdminForm({ title, children, onClose, onSubmit, submitLabel = "G
         setFieldErrors({});
         setSaving(true);
         try {
+            // Reloads the record before choosing the field to edit
             if (recordEndpoint) {
                 const { data } = await http.get(recordEndpoint);
                 onLoadRecord(data);

@@ -16,12 +16,14 @@ public class StudyPlanResponseDTO {
     private String identifier;
     private StudyPlanStatus status;
     private long careerId;
+    private String careerCode;
 
     public StudyPlanResponseDTO(StudyPlanEntity studyPlan) {
         this.id = studyPlan.getId();
         this.identifier = studyPlan.getIdentifier();
         this.status = studyPlan.getStatus();
         this.careerId = studyPlan.getCareer().getId();
+        this.careerCode = studyPlan.getCareer().getCode();
     }
 
     

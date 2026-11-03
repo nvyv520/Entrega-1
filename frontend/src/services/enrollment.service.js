@@ -27,8 +27,8 @@ const getSubjectsByStudyPlan = (studyPlanId) => {
 };
 
 // get authenticated student enrollments
-const getCurrentEnrollments = () => {
-    return http.get("/enrollments/me");
+const getCurrentEnrollments = (selection = false) => {
+    return http.get("/enrollments/me", { params: { selection } });
 };
 
 // enroll authenticated student in a section
@@ -43,6 +43,10 @@ const cancelEnrollment = (enrollmentId) => {
 
 const verifySelection = (periodId) => {
     return http.post(`/enrollments/me/academic-period/${periodId}/verify`);
+};
+
+const discardSelection = (periodId) => {
+    return http.post(`/enrollments/me/academic-period/${periodId}/discard`);
 };
 
 const getVerificationStatus = (periodId) => {
@@ -62,6 +66,7 @@ const enrollmentService = {
     createEnrollment,
     cancelEnrollment,
     verifySelection,
+    discardSelection,
     getVerificationStatus,
 };
 

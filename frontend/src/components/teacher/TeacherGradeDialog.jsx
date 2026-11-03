@@ -41,7 +41,7 @@ function TeacherGradeDialog({ student, section, onClose, onSaved }) {
             <DialogContent><Stack spacing={2} sx={{ pt: 1 }}>
                 {error && <Alert severity="error">{error}</Alert>}
                 <Typography>{student.firstName} {student.lastName}</Typography>
-                <Typography variant="body2">{section.subjectCode} — {section.subjectName} · Sección {section.id} · {section.periodCode}</Typography>
+                <Typography variant="body2">{section.subjectCode} — {section.subjectName} · Sección {section.code} · {section.periodCode}</Typography>
                 <TextField autoFocus required disabled={saving} type="text" label="Nota final" value={value} onChange={event => setValue(event.target.value)}
                     slotProps={{ htmlInput: { inputMode: "decimal" } }} helperText="Entre 1,0 y 7,0. Máximo un decimal; puedes usar coma o punto." />
             </Stack></DialogContent>

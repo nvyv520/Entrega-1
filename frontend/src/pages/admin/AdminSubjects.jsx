@@ -5,7 +5,7 @@ import AdminTable from "../../components/admin/AdminTable";
 import { AdminForm } from "../../components/admin/AdminDialog";
 import { filterValues, filteredRecords, matchesFilter, matchesSearch, saveAdminFields, useAdminRecords } from "../../services/adminAcademic";
 
-const numberFields = [["semester", "Semestre", 1, 4], ["theoryHours", "Horas de teoría", 0, 7], ["exerciseHours", "Horas de ejercicios", 0, 7], ["laboratoryHours", "Horas de laboratorio", 0, 7], ["sct", "Créditos SCT", 1, 7]];
+const numberFields = [["semester", "Semestre", 1, 4], ["theoryHours", "Horas de teoría", 0, 8], ["exerciseHours", "Horas de ejercicios", 0, 8], ["laboratoryHours", "Horas de laboratorio", 0, 8], ["sct", "Créditos SCT", 1, 7]];
 
 function AdminSubjects() {
     const subjects = useAdminRecords("/subjects");
@@ -22,9 +22,11 @@ function AdminSubjects() {
     const [remove, setRemove] = useState(null);
     const [message, setMessage] = useState("");
     const hasSections = id => sections.rows.some(row => row.subjectId === id);
+    // Checks enrollment records through the subject's sections
     const hasHistory = id => enrollments.rows.some(row => sections.rows.some(section => section.id === row.sectionId && section.subjectId === id));
     const restrictionsLoaded = !sections.loading && !sections.error && !enrollments.loading && !enrollments.error;
     const canEdit = row => restrictionsLoaded && !hasHistory(row.id) && !plans.loading && !plans.error;
+    // Allows TEL consultation when academic records prevent editing
     const hoursReadOnly = Boolean(form?.id && editField === "hours" && (!canEdit(form) || hasSections(form.id)));
     const editNotice = !form?.id ? "" : !restrictionsLoaded ? "No se pudieron comprobar las inscripciones y secciones. La edición permanece bloqueada hasta completar esas consultas."
         : hasHistory(form.id) ? "Esta asignatura tiene inscripciones registradas y su información académica está protegida: no admite edición. Las horas TEL pueden consultarse."
@@ -32,7 +34,7 @@ function AdminSubjects() {
         : hasSections(form.id) ? "Las horas TEL no se pueden editar porque existen secciones asociadas. Los demás campos permitidos conservan su edición." : "";
     const prerequisiteName = id => {
         const subject = subjects.rows.find(row => row.id === id);
-        return subject ? `${subject.code} — ${subject.name}` : `ID ${id}`;
+        return subject ? `${subject.code} — ${subject.name}` : "No disponible";
     };
     const saved = () => { subjects.reload(); setMessage("Operación realizada correctamente."); };
 
@@ -51,7 +53,7 @@ function AdminSubjects() {
             </TextField>
             <TextField size="small" select label="Plan de estudio" value={studyPlanId} onChange={event => setStudyPlanId(event.target.value)} sx={{ width: 180 }} disabled={plans.loading || Boolean(plans.error)}>
                 <MenuItem value="">Todos</MenuItem>
-                {plans.rows.filter(row => matchesFilter(row.careerId, careerId)).map(row => <MenuItem key={row.id} value={row.id}>{row.identifier} ({careers.rows.find(career => career.id === row.careerId)?.code})</MenuItem>)}
+                {plans.rows.filter(row => matchesFilter(row.careerId, careerId)).map(row => <MenuItem key={row.id} value={row.id}>{row.identifier} ({row.careerCode})</MenuItem>)}
             </TextField>
             <TextField size="small" select label="Semestre curricular" value={semester} onChange={event => setSemester(event.target.value)} sx={{ width: 190 }}>
                 <MenuItem value="">Todos</MenuItem>
@@ -61,15 +63,22 @@ function AdminSubjects() {
             <Button variant="contained" disabled={plans.loading || Boolean(plans.error)} onClick={() => setForm({ code: "", name: "", semester: 1, theoryHours: 0, exerciseHours: 0, laboratoryHours: 0, sct: 1, studyPlanId: "", prerequisiteIds: [] })}>Crear asignatura</Button>
         </Stack>
         <AdminTable title="Asignaturas" filtered records={filteredRecords(subjects, rows, careerId ? [plans] : [])} columns={[
-            ["code", "Código"], ["name", "Nombre"], ["studyPlanId", "Plan", row => plans.rows.find(plan => plan.id === row.studyPlanId)?.identifier || row.studyPlanId], ["semester", "Semestre"],
+            ["code", "Código"], ["name", "Nombre"], ["studyPlanId", "Plan", row => { const plan = plans.rows.find(plan => plan.id === row.studyPlanId); return plan ? `${plan.identifier} (${plan.careerCode})` : "No disponible"; }], ["semester", "Semestre"],
             ["theoryHours", "Teoría"], ["exerciseHours", "Ejercicios"], ["laboratoryHours", "Laboratorio"], ["sct", "SCT"], ["prerequisiteIds", "Prerrequisitos", row => row.prerequisiteIds.map(prerequisiteName).join(", ") || "Sin prerrequisitos"]
         ]} actions={row => <>
             <Button onClick={() => { setEditField(""); setForm({ ...row }); }}>Editar</Button>
         </>} />
         <Alert severity="info">El semestre y el plan no son editables. Las horas se bloquean si hay secciones; las asignaturas con historial académico no admiten edición. El backend valida cada operación.</Alert>
         {form && <AdminForm title={`${form.id ? "Editar" : "Crear"} asignatura`} onClose={() => setForm(null)} onSubmit={async () => {
-            if ((!form.id || editField === "hours") && Number(form.theoryHours) + Number(form.exerciseHours) + Number(form.laboratoryHours) > 7) {
-                throw new Error("Horas TEL: la suma de teoría, ejercicios y laboratorio no puede superar 7 horas semanales.");
+            // Validates nonnegative whole hours before saving TEL changes
+            if ((!form.id || editField === "hours") && ["theoryHours", "exerciseHours", "laboratoryHours"].some(field => {
+                const hours = Number(form[field]);
+                return form[field] == null || String(form[field]).trim() === "" || !Number.isInteger(hours) || hours < 0 || hours > 8;
+            })) {
+                throw new Error("Las horas de teoría, ejercicios y laboratorio deben ser números enteros entre 0 y 8. El máximo total es de 8 horas TEL.");
+            }
+            if ((!form.id || editField === "hours") && Number(form.theoryHours) + Number(form.exerciseHours) + Number(form.laboratoryHours) > 8) {
+                throw new Error("Horas TEL: la suma de teoría, ejercicios y laboratorio no puede superar 8 horas semanales.");
             }
             const data = { code: form.code.trim(), name: form.name.trim(), studyPlanId: Number(form.studyPlanId), prerequisiteIds: form.prerequisiteIds.map(Number) };
             numberFields.forEach(([field]) => { data[field] = Number(form[field]); });
@@ -83,7 +92,7 @@ function AdminSubjects() {
             {(!form.id || editField === "code") && <TextField required label="Código" value={form.code} slotProps={{ htmlInput: { maxLength: 20 } }} onChange={event => setForm({ ...form, code: event.target.value })} />}
             {(!form.id || editField === "name") && <TextField required label="Nombre" value={form.name} slotProps={{ htmlInput: { maxLength: 100 } }} onChange={event => setForm({ ...form, name: event.target.value })} />}
             {!form.id && <TextField required select label="Plan de estudio" value={form.studyPlanId} onChange={event => setForm({ ...form, studyPlanId: event.target.value, prerequisiteIds: [] })}>
-                {plans.rows.map(row => <MenuItem key={row.id} value={row.id}>{row.identifier} (carrera {row.careerId})</MenuItem>)}
+                {plans.rows.map(row => <MenuItem key={row.id} value={row.id}>{row.identifier} ({row.careerCode})</MenuItem>)}
             </TextField>}
             {numberFields.filter(([field]) => !hoursReadOnly && (!form.id || field === editField || (editField === "hours" && field.endsWith("Hours")))).map(([field, label, min, max]) => <TextField key={field} required type="number" label={label} value={form[field]} slotProps={{ htmlInput: { min, max, step: 1 } }} disabled={Boolean(form.id) && (field === "semester" || (field.endsWith("Hours") && hasSections(form.id)))} onChange={event => setForm({ ...form, [field]: event.target.value, ...(field === "semester" ? { prerequisiteIds: [] } : {}) })} />)}
             {hoursReadOnly && <>

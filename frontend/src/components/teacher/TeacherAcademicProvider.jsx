@@ -1,5 +1,6 @@
 import { Outlet } from "react-router-dom";
 import { TeacherContext, useTeacherRecords } from "../../services/teacherAcademic";
+import { firstOpenAcademicPeriod } from "../../services/studentAcademic";
 
 function TeacherAcademicProvider() {
     const assigned = useTeacherRecords("/sections/me");
@@ -20,6 +21,8 @@ function TeacherAcademicProvider() {
     });
     const value = {
         sections,
+        periods: periods.rows,
+        currentPeriod: firstOpenAcademicPeriod(periods.rows),
         loading: sources.some(source => source.loading),
         error: failed?.error || "",
         reload: () => sources.forEach(source => source.reload())

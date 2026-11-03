@@ -119,6 +119,10 @@ public class StudentService {
                 continue;
             }
 
+            if (!enrollmentRepository.isSelectionConfirmed(id, enrollment.getAcademicPeriod().getId())) {
+                continue;
+            }
+
             GradeEntity grade = gradeRepository.findByEnrollmentId(enrollment.getId()).orElse(null);
 
             // An ungraded enrollment does not establish an academic result.

@@ -53,6 +53,7 @@ function StudentCourses() {
                 const selection = await getCurrentSelection();
                 const { period: currentPeriod, verified: isVerified, enrollments, sections } = selection;
                 let coursesData = [];
+                // Builds the definitive schedule only from a confirmed selection
                 if (isVerified && enrollments.length > 0) {
                     const studentResponse = await subjectService.getCurrentStudent();
                     const subjectsResponse = await subjectService.getSubjectsByStudyPlan(studentResponse.data.studyPlanId);
@@ -63,6 +64,7 @@ function StudentCourses() {
                         return {
                             enrollmentId: enrollment.id,
                             sectionId: section.id,
+                            sectionCode: section.code,
                             subjectCode: subject.code,
                             subjectName: subject.name,
                             teacherName: section.teacherName || "Docente no informado",
@@ -188,7 +190,7 @@ function StudentCourses() {
                                         </TableCell>
 
                                         <TableCell>
-                                            {course.sectionId}
+                                            {course.sectionCode}
                                         </TableCell>
 
                                         <TableCell>

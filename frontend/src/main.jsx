@@ -4,7 +4,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
 import keycloak from "./auth/keycloak.js";
 import "./index.css";
-import { BrowserRouter } from "react-router-dom";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { CssBaseline } from "@mui/material";
 
 keycloak.init({
@@ -14,12 +14,14 @@ keycloak.init({
 }).then((authenticated) => {
 
     if (authenticated) {
+        // Provides the router context required to block unconfirmed navigation.
+        const router = createBrowserRouter([
+            { path: "*", element: <App /> }
+        ]);
         ReactDOM.createRoot(document.getElementById("root")).render(
             <React.StrictMode>
-                <BrowserRouter>
-                    <CssBaseline />
-                    <App />
-                </BrowserRouter>
+                <CssBaseline />
+                <RouterProvider router={router} />
             </React.StrictMode>
         );
     }

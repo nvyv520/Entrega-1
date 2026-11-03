@@ -1,10 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useBeforeUnload, useBlocker } from "react-router-dom";
 
 import {
     Alert,
     Box,
     Button,
     CircularProgress,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogContentText,
+    DialogTitle,
     Snackbar,
     Table,
     TableBody,
@@ -16,7 +22,7 @@ import {
 } from "@mui/material";
 
 import enrollmentService from "../../services/enrollment.service";
-import { latestAcademicPeriod, studentErrorMessage } from "../../services/studentAcademic";
+import { firstOpenAcademicPeriod, studentErrorMessage } from "../../services/studentAcademic";
 import { studentScheduleSx } from "../../styles/studentContent";
 
 const days = [
@@ -51,7 +57,9 @@ function StudentEnrollment() {
     const [retry, setRetry] = useState(0);
     const operationRef = useRef(false);
     const [cancellingId, setCancellingId] = useState(null);
-    const busy = verifying || enrollingSectionId !== null;
+    const [discarding, setDiscarding] = useState(false);
+    const [discardError, setDiscardError] = useState("");
+    const busy = verifying || enrollingSectionId !== null || discarding;
 
     useEffect(() => {
         let active = true;
@@ -70,10 +78,10 @@ function StudentEnrollment() {
                     enrollmentService.getCurrentStudent(),
                     enrollmentService.getOpenAcademicPeriods()
                 ]);
-                const period = latestAcademicPeriod(periodsResponse.data);
+                const period = firstOpenAcademicPeriod(periodsResponse.data);
                 const [subjectsResponse, enrollmentsResponse, sectionsResponse, statusResponse] = await Promise.all([
                     enrollmentService.getSubjectsByStudyPlan(studentResponse.data.studyPlanId),
-                    enrollmentService.getCurrentEnrollments(),
+                    enrollmentService.getCurrentEnrollments(true),
                     period ? enrollmentService.getEligibleSections(period.id) : Promise.resolve({ data: [] }),
                     period ? enrollmentService.getVerificationStatus(period.id) : Promise.resolve({ data: false })
                 ]);
@@ -99,8 +107,9 @@ function StudentEnrollment() {
     }, [retry]);
 
     const refreshSelection = async () => {
+        // Reloads reservations, available sections and persistent confirmation together
         const [enrollmentsResponse, sectionsResponse, statusResponse] = await Promise.all([
-            enrollmentService.getCurrentEnrollments(),
+            enrollmentService.getCurrentEnrollments(true),
             enrollmentService.getEligibleSections(selectedPeriodId),
             enrollmentService.getVerificationStatus(selectedPeriodId)
         ]);
@@ -190,6 +199,7 @@ function StudentEnrollment() {
 
     const enrolledCourses = activeEnrollments.map(enrollment => {
 
+        // Builds the provisional schedule from the selected sections
         const section = sections.find(
             item => item.id === enrollment.sectionId
         );
@@ -211,6 +221,55 @@ function StudentEnrollment() {
         period => period.id === selectedPeriodId
     );
 
+    const hasProvisionalSelection = activeEnrollments.length > 0 && verified !== true;
+    const blocker = useBlocker(({ currentLocation, nextLocation }) =>
+        currentLocation.pathname !== nextLocation.pathname &&
+        (hasProvisionalSelection || operationRef.current)
+    );
+
+    // Browser exits can warn about reservations but cannot guarantee cancellation.
+    useBeforeUnload(useCallback(event => {
+        if (hasProvisionalSelection || operationRef.current) {
+            event.preventDefault();
+            event.returnValue = "";
+        }
+    }, [hasProvisionalSelection]));
+
+    useEffect(() => {
+        if (blocker.state !== "blocked") setDiscardError("");
+        // A completed confirmation or an empty selection no longer requires discarding.
+        if (blocker.state === "blocked" && !busy && dataReady &&
+            !hasProvisionalSelection && !operationRef.current) {
+            blocker.proceed();
+        }
+    }, [blocker, busy, dataReady, hasProvisionalSelection]);
+
+    const discardSelection = async () => {
+        if (operationRef.current || !dataReady || verified !== false || blocker.state !== "blocked") return;
+        operationRef.current = true;
+        setDiscarding(true);
+        setDiscardError("");
+        try {
+            // The backend cancels all reservations or rolls the whole operation back.
+            await enrollmentService.discardSelection(selectedPeriodId);
+            setEnrollments(current => current.filter(enrollment =>
+                Number(enrollment.academicPeriodId) !== Number(selectedPeriodId)
+            ));
+            setVerified(false);
+            blocker.proceed();
+        } catch (err) {
+            setDiscardError(studentErrorMessage(err,
+                "No se pudo confirmar el descarte. Permaneces en esta página; revisa tu selección antes de reintentar."));
+            if (!err.response || err.response.status >= 500) {
+                setDataReady(false);
+                setVerified(null);
+            }
+        } finally {
+            operationRef.current = false;
+            setDiscarding(false);
+        }
+    };
+
     if (loading) {
         return (
             <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
@@ -221,6 +280,25 @@ function StudentEnrollment() {
 
     return (
         <Box>
+
+            <Dialog open={blocker.state === "blocked"} onClose={busy ? undefined : () => blocker.reset()}
+                aria-labelledby="selection-warning-title" aria-describedby="selection-warning-description">
+                <DialogTitle id="selection-warning-title">Selección sin confirmar</DialogTitle>
+                <DialogContent>
+                    <DialogContentText id="selection-warning-description">
+                        Tienes asignaturas sin confirmar. Si sales, puedes perder tu selección provisional.
+                    </DialogContentText>
+                    {busy && <Alert severity="info" sx={{ mt: 2 }}>Espera a que termine la operación en curso.</Alert>}
+                    {!dataReady && <Alert severity="warning" sx={{ mt: 2 }}>Continúa inscribiendo y recarga los datos antes de descartar la selección.</Alert>}
+                    {discardError && <Alert severity="error" sx={{ mt: 2 }}>{discardError}</Alert>}
+                </DialogContent>
+                <DialogActions>
+                    <Button disabled={busy} onClick={() => blocker.reset()}>Seguir inscribiendo</Button>
+                    <Button color="error" disabled={busy || !dataReady || verified !== false} onClick={discardSelection}>
+                        Descartar selección
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             <Typography
                 variant="h5"
@@ -290,10 +368,10 @@ function StudentEnrollment() {
                     sx={{ mb: 3 }}
                 >
                     {activeEnrollments.length === 0
-                        ? "Comienza inscribiendo una asignatura de las secciones ofertadas."
+                        ? "Comienza seleccionando una asignatura de las secciones ofertadas."
                         : verified
-                            ? "Selección verificada. Puedes seguir inscribiendo o cancelando mientras el período esté abierto; después deberás verificar nuevamente."
-                            : "Selección pendiente de verificación. Tus cupos ya están reservados. Verifica al completar entre 3 y 6 asignaturas, salvo que te falten menos de 3 para terminar el plan."}
+                            ? "Inscripción confirmada. Puedes seguir seleccionando o cancelando mientras el período esté abierto; después deberás verificar nuevamente."
+                            : "Selección provisional, sin inscripción oficial. Tus cupos ya están reservados. Verifica al completar entre 3 y 6 asignaturas, salvo que te falten menos de 3 para terminar el plan."}
                 </Alert>
             )}
 
@@ -367,7 +445,7 @@ function StudentEnrollment() {
                                             </TableCell>
 
                                             <TableCell>
-                                                {section.id}
+                                                {section.code}
                                             </TableCell>
 
                                             <TableCell>
@@ -422,8 +500,8 @@ function StudentEnrollment() {
                                                         }}
                                                     >
                                                         {cancellingId === null && enrollingSectionId === section.id
-                                                            ? "Inscribiendo..."
-                                                            : "Inscribir"}
+                                                            ? "Seleccionando..."
+                                                            : "Seleccionar"}
                                                     </Button>
                                                 )}
                                             </TableCell>
@@ -452,8 +530,8 @@ function StudentEnrollment() {
                                 color: "var(--secondary-text-color)"
                             }}
                         >
-                            Inscribir reserva un cupo inmediatamente; cancelar lo libera.
-                            Verificar no descuenta otro cupo y, si falla, conserva tus inscripciones.
+                            Seleccionar reserva un cupo provisional; cancelar lo libera.
+                            Verificar confirma la inscripción sin descontar otro cupo y, si falla, conserva tu selección provisional.
                         </Typography>
                     )}
                 </Box>
@@ -464,7 +542,7 @@ function StudentEnrollment() {
                         variant="h6"
                         sx={{ fontWeight: 600, mb: 2 }}
                     >
-                        Horario de inscripción
+                        Horario provisional de selección
                     </Typography>
 
                     <TableContainer sx={studentScheduleSx}>
@@ -556,7 +634,7 @@ function StudentEnrollment() {
                             color: "var(--secondary-text-color)"
                         }}
                     >
-                        Asignaturas inscritas: {activeEnrollments.length}
+                        Asignaturas seleccionadas: {activeEnrollments.length}
                     </Typography>
 
                     <Button

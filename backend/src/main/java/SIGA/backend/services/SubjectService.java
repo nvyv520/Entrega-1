@@ -105,8 +105,8 @@ public class SubjectService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Las horas correspondientes son obligatorias");
         }
 
-        if ( (long) theory + exercise + lab > 7) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Se excede de las horas maximas permitidas");
+        if ( (long) theory + exercise + lab > 8) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La suma de horas TEL no puede superar 8 horas semanales");
         }
     }
 

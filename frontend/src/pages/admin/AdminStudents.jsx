@@ -26,9 +26,13 @@ function AdminStudents() {
     const saved = () => { students.reload(); setMessage("Operación realizada correctamente."); };
     const selectorsReady = !careers.loading && !plans.loading && !careers.error && !plans.error;
     const hasHistory = id => enrollments.rows.some(row => row.studentId === id);
+    // Blocks career and plan changes until enrollment records can be checked
     const relationsLocked = form?.id && (hasHistory(form.id) || enrollments.loading || Boolean(enrollments.error));
-    const careerName = id => careers.rows.find(row => row.id === id)?.name || id;
-    const planName = id => plans.rows.find(row => row.id === id)?.identifier || id;
+    const careerName = id => careers.rows.find(row => row.id === id)?.code || "No disponible";
+    const planName = id => {
+        const plan = plans.rows.find(row => row.id === id);
+        return plan ? `${plan.identifier} (${plan.careerCode})` : "No disponible";
+    };
     const [credentials, setCredentials] = useState(null);
     const [showPassword, setShowPassword] = useState(false);
 
@@ -57,7 +61,7 @@ function AdminStudents() {
             </TextField>
             <TextField size="small" select label="Plan de estudio" value={studyPlanId} onChange={event => setStudyPlanId(event.target.value)} sx={{ width: 180 }} disabled={plans.loading || Boolean(plans.error)}>
                 <MenuItem value="">Todos</MenuItem>
-                {plans.rows.filter(row => matchesFilter(row.careerId, careerId)).map(row => <MenuItem key={row.id} value={row.id}>{row.identifier} (carrera {row.careerId})</MenuItem>)}
+                {plans.rows.filter(row => matchesFilter(row.careerId, careerId)).map(row => <MenuItem key={row.id} value={row.id}>{row.identifier} ({row.careerCode})</MenuItem>)}
             </TextField>
             <TextField size="small" select label="Estado académico" value={status} onChange={event => setStatus(event.target.value)} sx={{ width: 200 }}>
                 <MenuItem value="">Todos</MenuItem>
@@ -100,7 +104,7 @@ function AdminStudents() {
             </TextField>}
             {form.id && editField === "relations" && <TextField select label="Plan de estudio" disabled={Boolean(relationsLocked)} value={form.studyPlanId} onChange={event => setForm({ ...form, studyPlanId: event.target.value })}>
                 <MenuItem value="">Asignar plan vigente al cambiar de carrera</MenuItem>
-                {plans.rows.filter(row => String(row.careerId) === String(form.careerId)).map(row => <MenuItem key={row.id} value={row.id}>{row.identifier} — {row.status}</MenuItem>)}
+                {plans.rows.filter(row => String(row.careerId) === String(form.careerId)).map(row => <MenuItem key={row.id} value={row.id}>{row.identifier} ({row.careerCode}) — {row.status}</MenuItem>)}
             </TextField>}
             {(!form.id || editField === "relations") && <Alert severity="info">El backend asigna el plan vigente al registrar. No se permite cambiar carrera o plan si existe información académica.</Alert>}
             {form.id && editField === "status" && <>

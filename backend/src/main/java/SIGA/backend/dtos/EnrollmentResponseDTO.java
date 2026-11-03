@@ -21,6 +21,7 @@ public class EnrollmentResponseDTO {
     private Long academicPeriodId;
     private LocalDate enrollmentDate;
     private EnrollmentStatus status;
+    private boolean confirmed;
 
     public EnrollmentResponseDTO(EnrollmentEntity enrrollment) {
         this.id = enrrollment.getId();

@@ -137,6 +137,11 @@ public class GradeService {
     // validate enrollment
     private void validateEnrollment(EnrollmentEntity enrollment) {
 
+        // Provisional reservations cannot receive grades.
+        if (!enrollmentRepository.isSelectionConfirmed(enrollment.getStudent().getId(), enrollment.getAcademicPeriod().getId())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "El estudiante debe confirmar su seleccion antes de recibir calificaciones");
+        }
+
         // validate enrollment status
         if (enrollment.getStatus() != EnrollmentStatus.ACTIVO) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "La inscripcion debe estar activa");
@@ -277,7 +282,10 @@ public class GradeService {
         StudentEntity student = studentRepository.findByKeycloakSubject(keycloakSubject).orElseThrow(() -> 
                                 new ResponseStatusException(HttpStatus.NOT_FOUND,  "No existe un estudiante asociado a esta cuenta"));
 
-        return getGradesByStudent(student.getId());
+        return gradeRepository.findByEnrollment_Student_Id(student.getId()).stream()
+                .filter(grade -> enrollmentRepository.isSelectionConfirmed(
+                        student.getId(), grade.getEnrollment().getAcademicPeriod().getId()))
+                .map(GradeResponseDTO::new).toList();
     }
 
     // get grades only from a section assigned to the authenticated teacher
@@ -286,7 +294,9 @@ public class GradeService {
 
         sectionService.findCurrentTeacherSection(keycloakSubject, sectionId);
         return gradeRepository.findByEnrollment_Section_IdAndEnrollment_Status(sectionId, EnrollmentStatus.ACTIVO)
-                .stream().map(GradeResponseDTO::new).toList();
+                .stream().filter(grade -> enrollmentRepository.isSelectionConfirmed(
+                        grade.getEnrollment().getStudent().getId(), grade.getEnrollment().getAcademicPeriod().getId()))
+                .map(GradeResponseDTO::new).toList();
     }
 
 }

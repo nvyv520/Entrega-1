@@ -60,6 +60,10 @@ class GradeAuthorizationTests {
         enrollment.setSection(section);
         enrollment.setAcademicPeriod(period);
         enrollment.setStatus(EnrollmentStatus.ACTIVO);
+        StudentEntity student = new StudentEntity();
+        student.setId(5L);
+        enrollment.setStudent(student);
+        when(enrollments.isSelectionConfirmed(5L, 3L)).thenReturn(true);
         when(enrollments.findById(20L)).thenReturn(Optional.of(enrollment));
         when(entityManager.find(AcademicPeriodEntity.class, 3L, LockModeType.PESSIMISTIC_WRITE)).thenReturn(period);
         request = new GradeRequestDTO();
@@ -127,6 +131,19 @@ class GradeAuthorizationTests {
                 () -> service.createGrade(request)).getStatusCode());
         assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
                 () -> service.updateGrade(1L, request)).getStatusCode());
+    }
+
+    @Test
+    void provisionalSelectionCannotReceiveOrUpdateGrades() {
+        when(enrollments.isSelectionConfirmed(5L, 3L)).thenReturn(false);
+        GradeEntity current = new GradeEntity();
+        current.setEnrollment(enrollment);
+        when(grades.findById(1L)).thenReturn(Optional.of(current));
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> service.createGrade(request)).getStatusCode());
+        assertEquals(HttpStatus.CONFLICT, assertThrows(ResponseStatusException.class,
+                () -> service.updateGrade(1L, request)).getStatusCode());
+        verify(grades, never()).save(any());
     }
 
     @Test

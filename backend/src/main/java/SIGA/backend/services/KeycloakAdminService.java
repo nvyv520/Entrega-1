@@ -8,6 +8,9 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Objects;
+import java.text.Normalizer;
+import java.util.Locale;
+import java.time.Year;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -23,8 +26,11 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.env.Environment;
+import lombok.RequiredArgsConstructor;
 
 @Service
+@RequiredArgsConstructor
 public class KeycloakAdminService {
 
     @Value("${KEYCLOAK_INTERNAL_URL}")
@@ -35,6 +41,11 @@ public class KeycloakAdminService {
 
     @Value("${KEYCLOAK_ADMIN_CLIENT_SECRET}")
     private String clientSecret;
+
+    @Value("${siga.keycloak.local-fictitious-passwords:false}")
+    private boolean localFictitiousPasswords;
+
+    private final Environment environment;
 
     private final RestClient restClient = RestClient.create();
     private static final Logger logger = LoggerFactory.getLogger(KeycloakAdminService.class);
@@ -159,6 +170,21 @@ public class KeycloakAdminService {
 
 
 
+    // Uses predictable passwords only with the explicit local fictitious-data settings.
+    private String generateTemporaryPassword(String firstName) {
+        String[] profiles = environment.getActiveProfiles();
+        if (!localFictitiousPasswords || profiles.length != 1 || !"local-fictitious".equals(profiles[0])) {
+            return generateTemporaryPassword();
+        }
+
+        String name = normalizeUsername(firstName.trim().split("\\s+")[0]);
+        if (name.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El primer nombre no permite generar una contraseña temporal valida");
+        }
+        return name + Year.now().getValue();
+    }
+
+
     // delete newly created user
     public void deleteCreatedUser(CreatedUser createdUser) {
 
@@ -231,7 +257,7 @@ public class KeycloakAdminService {
                 .retrieve().body(Map.class);
         if (user == null || !createdUser.keycloakSubject().equals(user.get("id"))
                 || !(user.get("username") instanceof String username) || !createdUser.username().equalsIgnoreCase(username)
-                || !(user.get("email") instanceof String email) || !createdUser.username().equalsIgnoreCase(email)
+                || !(user.get("email") instanceof String email) || email.isBlank()
                 || !(user.get("attributes") instanceof Map<?, ?> attributes)
                 || !List.of(createdUser.registrationId()).equals(attributes.get("sigaRegistrationId"))) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
@@ -379,6 +405,28 @@ public class KeycloakAdminService {
         }
     }
 
+    // Keeps email usernames when the realm settings cannot be verified.
+    private boolean supportsIndependentUsername(String token) {
+        try {
+            Map<?, ?> realm = restClient.get()
+                    .uri(keycloakUrl + "/admin/realms/SIGA")
+                    .headers(headers -> headers.setBearerAuth(token))
+                    .retrieve().body(Map.class);
+            return realm != null && Boolean.FALSE.equals(realm.get("registrationEmailAsUsername"));
+        } catch (RestClientResponseException exception) {
+            if (exception.getStatusCode().value() == 403) {
+                logger.warn("Realm settings unavailable; new accounts retain email usernames");
+                return false;
+            }
+            throw exception;
+        }
+    }
+
+    private String normalizeUsername(String value) {
+        return Normalizer.normalize(value, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "").toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+    }
+
     // create user in Keycloak
     public CreatedUser createUser(String username, String firstName, String lastName, String role) {
 
@@ -391,7 +439,8 @@ public class KeycloakAdminService {
         }
 
         String email = username.trim();
-        String password = generateTemporaryPassword();
+        String login = email;
+        String password = generateTemporaryPassword(firstName);
         String subject = null;
         String registrationId = UUID.randomUUID().toString();
         String stage = "obtener autorización";
@@ -399,9 +448,15 @@ public class KeycloakAdminService {
 
         try {
             String token = getAccessToken();
+            boolean independentUsername = supportsIndependentUsername(token);
+            String name = normalizeUsername(firstName.trim().split("\\s+")[0]);
+            String surname = normalizeUsername(lastName);
+            if (independentUsername && name.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El primer nombre no permite generar un usuario valido");
+            }
 
             stage = "comprobar los conflictos de identidad";
-            for (String field : List.of("username", "email")) {
+            for (String field : independentUsername ? List.of("email") : List.of("username", "email")) {
                 List<?> matches = restClient.get()
                         .uri(keycloakUrl + "/admin/realms/SIGA/users?" + field + "={value}&exact=true", email)
                         .headers(headers -> headers.setBearerAuth(token))
@@ -415,24 +470,66 @@ public class KeycloakAdminService {
                 }
             }
 
-            Map<String, Object> user = Map.of(
-                    "username", email,
-                    "email", email,
-                    "firstName", firstName,
-                    "lastName", lastName,
-                    "enabled", true,
-                    "attributes", Map.of("sigaRegistrationId", List.of(registrationId)),
-                    "requiredActions", List.of("UPDATE_PASSWORD"));
+            ResponseEntity<Void> response = null;
+            // Keycloak remains the uniqueness authority, including concurrent requests.
+            for (int attempt = 0; attempt < surname.length() + 101; attempt++) {
+                login = independentUsername
+                        ? name + (attempt <= surname.length() ? surname.substring(0, attempt)
+                                : surname + (attempt - surname.length()))
+                        : email;
+                stage = "comprobar el nombre de usuario";
+                List<?> matches = restClient.get()
+                        .uri(keycloakUrl + "/admin/realms/SIGA/users?username={value}&exact=true", login)
+                        .headers(headers -> headers.setBearerAuth(token))
+                        .retrieve().body(List.class);
+                if (matches == null) {
+                    throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Keycloak no devolvio la comprobacion del usuario");
+                }
+                if (!matches.isEmpty()) {
+                    if (independentUsername) continue;
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "El usuario ya existe en Keycloak");
+                }
 
-            stage = "crear la cuenta";
-            creationRequested = true;
-            ResponseEntity<Void> response = restClient.post()
-                    .uri(keycloakUrl + "/admin/realms/SIGA/users")
-                    .headers(headers -> headers.setBearerAuth(token))
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(user)
-                    .retrieve()
-                    .toBodilessEntity();
+                Map<String, Object> user = Map.of(
+                        "username", login,
+                        "email", email,
+                        "firstName", firstName,
+                        "lastName", lastName,
+                        "enabled", true,
+                        "attributes", Map.of("sigaRegistrationId", List.of(registrationId)),
+                        "requiredActions", List.of("UPDATE_PASSWORD"));
+
+                stage = "crear la cuenta";
+                creationRequested = true;
+                try {
+                    response = restClient.post()
+                            .uri(keycloakUrl + "/admin/realms/SIGA/users")
+                            .headers(headers -> headers.setBearerAuth(token))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .body(user)
+                            .retrieve()
+                            .toBodilessEntity();
+                    break;
+                } catch (RestClientResponseException exception) {
+                    if (exception.getStatusCode().value() != 409) throw exception;
+                    creationRequested = false;
+                    if (!independentUsername) throw exception;
+                    List<?> emails = restClient.get()
+                            .uri(keycloakUrl + "/admin/realms/SIGA/users?email={value}&exact=true", email)
+                            .headers(headers -> headers.setBearerAuth(token))
+                            .retrieve().body(List.class);
+                    if (emails == null) {
+                        throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Keycloak no devolvio la comprobacion del correo");
+                    }
+                    if (!emails.isEmpty()) {
+                        throw new ResponseStatusException(HttpStatus.CONFLICT, "El correo ya existe en Keycloak");
+                    }
+                }
+            }
+
+            if (response == null) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "No se pudo reservar un nombre de usuario disponible; vuelve a intentar");
+            }
 
             URI location = response.getHeaders().getLocation();
 
@@ -448,7 +545,10 @@ public class KeycloakAdminService {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Keycloak devolvió un identificador inválido");
             }
             stage = "verificar la cuenta creada";
-            verifyCreatedUser(new CreatedUser(subject, email, password, registrationId), token);
+            Map<?, ?> createdUser = verifyCreatedUser(new CreatedUser(subject, login, password, registrationId), token);
+            if (!email.equalsIgnoreCase((String) createdUser.get("email"))) {
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Keycloak no conservo el correo de contacto");
+            }
 
             // set temporary password
             stage = "configurar la contraseña temporal";
@@ -496,7 +596,7 @@ public class KeycloakAdminService {
             }
             stage = "verificar el registro completo";
             validateUserRole(subject, role);
-            Map<?, ?> completedUser = verifyCreatedUser(new CreatedUser(subject, email, password, registrationId), token);
+            Map<?, ?> completedUser = verifyCreatedUser(new CreatedUser(subject, login, password, registrationId), token);
             if (!Boolean.TRUE.equals(completedUser.get("enabled"))
                     || !(completedUser.get("requiredActions") instanceof List<?> actions) || !actions.contains("UPDATE_PASSWORD")) {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "La cuenta de Keycloak está incompleta");
@@ -512,20 +612,20 @@ public class KeycloakAdminService {
                         "El usuario o correo ya existe en Keycloak. No se modificó la cuenta existente; si hubo un intento anterior, requiere revisión manual");
             }
 
-            boolean cleaned = !creationRequested || cleanupCreatedUser(new CreatedUser(subject, email, password, registrationId));
+            boolean cleaned = !creationRequested || cleanupCreatedUser(new CreatedUser(subject, login, password, registrationId));
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "No se pudo " + stage + " en Keycloak" + (cleaned ? "" : ". El estado de la cuenta requiere revisión manual antes de reintentar"));
 
         } catch (org.springframework.web.client.RestClientException exception) {
 
-            boolean cleaned = !creationRequested || cleanupCreatedUser(new CreatedUser(subject, email, password, registrationId));
+            boolean cleaned = !creationRequested || cleanupCreatedUser(new CreatedUser(subject, login, password, registrationId));
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "Falló la comunicación con Keycloak al " + stage + (cleaned ? "" : ". El estado de la cuenta requiere revisión manual antes de reintentar"));
 
         } catch (RuntimeException exception) {
 
             if (!creationRequested && exception instanceof ResponseStatusException) throw exception;
-            boolean cleaned = !creationRequested || cleanupCreatedUser(new CreatedUser(subject, email, password, registrationId));
+            boolean cleaned = !creationRequested || cleanupCreatedUser(new CreatedUser(subject, login, password, registrationId));
             String reason = exception instanceof ResponseStatusException statusException ? statusException.getReason() : "Respuesta inesperada de Keycloak al " + stage;
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     reason + (cleaned ? "" : ". El estado de la cuenta requiere revisión manual antes de reintentar"));

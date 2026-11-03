@@ -5,7 +5,7 @@ import {
     TableContainer, TableHead, TableRow, Typography
 } from "@mui/material";
 import subjectService from "../../services/subject.service";
-import { latestAcademicPeriod, studentErrorMessage } from "../../services/studentAcademic";
+import { firstOpenAcademicPeriod, studentErrorMessage } from "../../services/studentAcademic";
 import enrollmentService from "../../services/enrollment.service";
 import http from "../../http-common";
 
@@ -24,8 +24,9 @@ function StudentAcademicRecords({ gradesOnly = false }) {
                 const periodsResponse = await http.get("/academic-periods");
                 let rows = [];
                 let code = "";
+                // Separates current grades from the consolidated academic history
                 if (gradesOnly) {
-                    const period = latestAcademicPeriod(periodsResponse.data.filter(item => item.status === "ABIERTO"));
+                    const period = firstOpenAcademicPeriod(periodsResponse.data);
                     code = period?.code || "";
                     if (period) {
                         const [enrollmentsResponse, gradesResponse, sectionsResponse, subjectsResponse] = await Promise.all([
@@ -45,6 +46,7 @@ function StudentAcademicRecords({ gradesOnly = false }) {
                     }
                 } else {
                     const historyResponse = await subjectService.getCurrentStudentAcademicHistory();
+                    // Keeps graded attempts from closed periods in the history
                     const closedPeriods = new Set(periodsResponse.data.filter(period => period.status === "CERRADO").map(period => Number(period.id)));
                     rows = historyResponse.data.filter(record => closedPeriods.has(Number(record.academicPeriodId)) && record.finalGrade != null)
                         .sort((first, second) => second.academicPeriodCode.localeCompare(first.academicPeriodCode, undefined, { numeric: true })

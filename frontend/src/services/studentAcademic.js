@@ -1,13 +1,18 @@
 import enrollmentService from "./enrollment.service";
 
-// All student views use the same definition of the current academic period.
+// Keeps the latest period for existing grade queries.
 export const latestAcademicPeriod = periods => [...periods].sort(
     (a, b) => Number(b.year) - Number(a.year) || Number(b.semester) - Number(a.semester)
 )[0] || null;
 
+// Selects the first open period for enrollment by year and semester.
+export const firstOpenAcademicPeriod = periods => periods.filter(period => period.status === "ABIERTO").sort(
+    (a, b) => Number(a.year) - Number(b.year) || Number(a.semester) - Number(b.semester)
+)[0] || null;
+
 export async function getCurrentSelection() {
     const periodsResponse = await enrollmentService.getOpenAcademicPeriods();
-    const period = latestAcademicPeriod(periodsResponse.data);
+    const period = firstOpenAcademicPeriod(periodsResponse.data);
     if (!period) return { period: null, verified: false, enrollments: [], sections: [] };
 
     // A failed status request must reject, never silently become an unverified selection.

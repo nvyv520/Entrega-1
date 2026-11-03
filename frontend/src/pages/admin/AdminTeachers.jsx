@@ -23,6 +23,7 @@ function AdminTeachers() {
     const [showPassword, setShowPassword] = useState(false);
 
     const formatField = field => {
+        // Normalizes the field and keeps validation errors beside the input
         try {
             const value = normalizePersonField(field, form[field]);
             setForm({ ...form, [field]: value });
@@ -46,7 +47,7 @@ function AdminTeachers() {
         </Stack>
         <AdminTable title="Docentes" filtered records={{ ...teachers, rows }} columns={[
             ["rut", "RUT"], ["firstName", "Nombre"], ["lastName", "Apellido"], ["email", "Correo"], ["professionalTitle", "Título profesional"], ["academicDegree", "Grado académico"], ["status", "Estado"],
-            ["sections", "Secciones", row => <Button onClick={() => setQuery({ title: `Secciones de ${row.firstName} ${row.lastName}`, endpoint: `/sections/teacher/${row.id}`, columns: [["id", "Sección"], ["subjectId", "Asignatura (ID)"], ["academicPeriodId", "Período (ID)"], ["blocks", "Bloques"], ["capacity", "Capacidad"], ["enrolledStudents", "Inscritos"], ["status", "Estado"]] })}>Ver</Button>]
+            ["sections", "Secciones", row => <Button onClick={() => setQuery({ title: `Secciones de ${row.firstName} ${row.lastName}`, endpoint: `/sections/teacher/${row.id}`, columns: [["code", "Sección"], ["subjectCode", "Asignatura"], ["academicPeriodCode", "Período"], ["blocks", "Bloques"], ["capacity", "Capacidad"], ["enrolledStudents", "Inscritos"], ["status", "Estado"]] })}>Ver</Button>]
         ]} actions={row => <>
             <Button onClick={() => { setFieldErrors({}); setEditField(""); setForm({ ...row }); }}>Editar</Button>
         </>} />
@@ -58,6 +59,7 @@ function AdminTeachers() {
                 Object.assign(data, preparePersonFields(form, !form.id ? fields.map(([field]) => field) : editField === "name" ? ["firstName", "lastName"] : fields.some(([field]) => field === editField) ? [editField] : [], setFieldErrors));
                 if (form.id) await saveAdminFields("/teachers", form.id, data, fields.map(([field]) => field), editField === "name" ? ["firstName", "lastName"] : [editField]);
                 else {
+                    // Keeps the new account credentials only until the dialog closes
                     const response = await http.post("/teachers", data);
                     setCredentials({
                         username: response.data.username,

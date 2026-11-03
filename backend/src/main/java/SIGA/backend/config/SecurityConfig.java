@@ -135,7 +135,8 @@ public class SecurityConfig {
                         // Verify student enrollment selection
                         .requestMatchers(
                                 HttpMethod.POST,
-                                "/api/enrollments/me/academic-period/*/verify"
+                                "/api/enrollments/me/academic-period/*/verify",
+                                "/api/enrollments/me/academic-period/*/discard"
                         )
                                 .hasRole("STUDENT")
 

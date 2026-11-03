@@ -53,8 +53,11 @@ public class EnrollmentController {
             @ApiResponse(responseCode = "200", description = "Enrollments retrieved successfully"),
             @ApiResponse(responseCode = "404", description = "Student not linked to Keycloak")
     })
-    public ResponseEntity<List<EnrollmentResponseDTO>> getCurrentStudentEnrollments( @AuthenticationPrincipal Jwt jwt) {
-        List<EnrollmentResponseDTO> enrollments = enrollmentService.getCurrentStudentEnrollments(jwt.getSubject());
+    public ResponseEntity<List<EnrollmentResponseDTO>> getCurrentStudentEnrollments( @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "false") boolean selection) {
+        List<EnrollmentResponseDTO> enrollments = selection
+                ? enrollmentService.getCurrentStudentSelection(jwt.getSubject())
+                : enrollmentService.getCurrentStudentEnrollments(jwt.getSubject());
         return ResponseEntity.ok(enrollments);
     }
 
@@ -100,6 +103,16 @@ public class EnrollmentController {
 
         EnrollmentResponseDTO cancelled = enrollmentService.cancelCurrentStudentEnrollment(jwt.getSubject(), enrollmentId);
         return ResponseEntity.ok(cancelled);
+    }
+
+
+    // Discards only the authenticated student's provisional selection.
+    @PostMapping("/me/academic-period/{periodId}/discard")
+    @Operation(summary = "Discard authenticated student's provisional selection")
+    public ResponseEntity<Void> discardCurrentStudentSelection(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long periodId) {
+        enrollmentService.discardCurrentStudentSelection(jwt.getSubject(), periodId);
+        return ResponseEntity.noContent().build();
     }
 
 

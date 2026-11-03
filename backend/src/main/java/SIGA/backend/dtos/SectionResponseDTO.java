@@ -16,6 +16,9 @@ import java.util.Set;
 public class SectionResponseDTO {
 
     private Long id;
+    private String code;
+    private String subjectCode;
+    private String academicPeriodCode;
     private Long subjectId;
     private Long academicPeriodId;
     private Long teacherId;
@@ -29,7 +32,13 @@ public class SectionResponseDTO {
 
     public SectionResponseDTO(SectionEntity section) {
         this.id = section.getId();
+        // Only one section is allowed per subject and academic period.
+        this.code = section.getSubject().getCode() +
+                String.format(java.util.Locale.ROOT, "%02d", section.getAcademicPeriod().getYear() % 100) +
+                section.getAcademicPeriod().getSemester() + "-1";
         this.subjectId = section.getSubject().getId();
+        this.subjectCode = section.getSubject().getCode();
+        this.academicPeriodCode = section.getAcademicPeriod().getCode();
         this.academicPeriodId = section.getAcademicPeriod().getId();
         this.teacherId = section.getTeacher() == null ? null : section.getTeacher().getId();
         this.teacherName = section.getTeacher() == null ? null :
