@@ -87,4 +87,19 @@ public class PeriodMatriculationController {
         URI location = URI.create("/api/period-matriculations/" + newMatriculation.getId());
         return ResponseEntity.created(location).body(newMatriculation);
     }
+    // update external matriculation status
+    @PatchMapping("/student/{studentId}/academic-period/{periodId}")
+    @Operation(summary = "Update external matriculation status")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Matriculation status saved"),
+            @ApiResponse(responseCode = "400", description = "Invalid matriculation status"),
+            @ApiResponse(responseCode = "404", description = "Student or period not found"),
+            @ApiResponse(responseCode = "409", description = "Closed period or existing enrollment prevents the change")
+    })
+    public ResponseEntity<Void> updateMatriculationStatus(@PathVariable Long studentId,
+            @PathVariable Long periodId, @RequestParam Boolean matriculated) {
+        matriculationService.updateMatriculationStatus(studentId, periodId, matriculated);
+        return ResponseEntity.noContent().build();
+    }
+
 }

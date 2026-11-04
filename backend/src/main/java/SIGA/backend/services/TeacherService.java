@@ -208,7 +208,7 @@ public class TeacherService {
 
         // Checks the teacher sections in open periods
         if (status == TeacherStatus.INACTIVO && sectionRepository.existsByTeacherIdAndAcademicPeriod_Status(id, AcademicPeriodStatus.ABIERTO)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puedde cambiar el estado, ya que cuenta con seccione activas");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "No se puede cambiar el estado, ya que cuenta con secciones en períodos abiertos");
         }
 
         // update 

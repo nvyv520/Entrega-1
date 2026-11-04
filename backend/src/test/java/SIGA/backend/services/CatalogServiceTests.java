@@ -108,7 +108,7 @@ class CatalogServiceTests {
   void matriculationLifecycleAndRejections() {
     var repo = mock(PeriodMatriculationRepository.class);
     var em = mock(EntityManager.class);
-    var s = new PeriodMatriculationService(repo, em);
+    var s = new PeriodMatriculationService(repo, em, mock(EnrollmentRepository.class));
     var p = period();
     var st = student();
     var e = new PeriodMatriculationEntity(1L, st, p, false);

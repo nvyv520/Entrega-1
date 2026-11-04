@@ -8,6 +8,7 @@ import { filterValues, filteredRecords, matchesFilter, saveAdminFields, useAdmin
 const days = [["L", "Lunes"], ["M", "Martes"], ["W", "Miércoles"], ["J", "Jueves"], ["V", "Viernes"]];
 const blocks = [1, 2, 3, 4, 5, 6];
 
+// manage sections through /api/sections using POST, PUT and DELETE
 function AdminSections() {
     const [periodId, setPeriodId] = useState("");
     const [careerId, setCareerId] = useState("");
@@ -15,13 +16,21 @@ function AdminSections() {
     const [semester, setSemester] = useState("");
     const [teacherId, setTeacherId] = useState("");
     const [status, setStatus] = useState("");
+    // GET /api/academic-periods
     const periods = useAdminRecords("/academic-periods");
+    // GET /api/sections
     const sections = useAdminRecords("/sections");
+    // GET /api/subjects
     const subjects = useAdminRecords("/subjects");
+    // GET /api/careers
     const careers = useAdminRecords("/careers");
+    // GET /api/study-plans
     const plans = useAdminRecords("/study-plans");
+    // GET /api/teachers
     const teachers = useAdminRecords("/teachers");
+    // GET /api/students
     const students = useAdminRecords("/students");
+    // GET /api/enrollments
     const enrollments = useAdminRecords("/enrollments");
     const [form, setForm] = useState(null);
     const [editField, setEditField] = useState("");
@@ -116,7 +125,7 @@ function AdminSections() {
         ]} actions={row => <>
             <Button onClick={() => { setEditField(""); setScheduleError(""); setForm({ ...row }); }}>Editar</Button>
         </>} />
-        <Alert severity="info">Solo se editan secciones de períodos abiertos sin inscripciones, incluso canceladas. La asignatura y el período no se pueden cambiar. No existe un endpoint para cambiar manualmente el estado.</Alert>
+        <Alert severity="info">Solo se editan secciones de períodos abiertos sin inscripciones, incluso canceladas. La asignatura y el período no se pueden cambiar. El estado cambia automáticamente al cerrar el período.</Alert>
         {form && <AdminForm title={`${form.id ? "Editar" : "Crear"} sección`} onClose={() => setForm(null)} onSubmit={async () => {
             if (!form.blocks.length) throw new Error("Selecciona al menos un bloque horario.");
             if (!selectedSubject || !selectorsReady) throw new Error("No se pudieron consultar las horas TEL de la asignatura. Recarga los datos antes de guardar.");
@@ -141,7 +150,7 @@ function AdminSections() {
             {(!form.id || editField === "capacity") && <TextField required type="number" label="Capacidad" value={form.capacity} slotProps={{ htmlInput: { min: 1, max: 60, step: 1 } }} onChange={event => setForm({ ...form, capacity: event.target.value })} />}
             {(!form.id || editField === "blocks") && <>
             <Typography variant="h6">Bloques de horario</Typography>
-            <Alert severity="info">Cada bloque equivale a 2 horas. El backend valida las horas TEL, los cupos y los topes de horario del docente.</Alert>
+            <Alert severity="info">Cada bloque equivale a 2 horas. El horario debe completar las horas TEL y respetar los cupos y la disponibilidad del docente.</Alert>
             {selectedSubject ? <>
                 <Typography>Horas seleccionadas: {selectedHours} / {requiredHours}</Typography>
                 {requiredBlocks !== null && <Typography>Bloques seleccionados: {form.blocks.length} / {requiredBlocks}</Typography>}

@@ -18,6 +18,7 @@ export function teacherErrorMessage(error) {
     }[error.response?.status] || "No se pudo completar la solicitud. Intenta nuevamente.";
 }
 
+// get teacher records from the selected endpoint
 export function useTeacherRecords(endpoint) {
     const [result, setResult] = useState({ endpoint: null, rows: [], loading: true, error: "" });
     const [version, setVersion] = useState(0);
@@ -26,6 +27,7 @@ export function useTeacherRecords(endpoint) {
         let active = true;
         if (!endpoint) return;
         setResult({ endpoint, rows: [], loading: true, error: "" });
+        // GET /api{endpoint}
         http.get(endpoint).then(({ data }) => {
             if (active) setResult({ endpoint, rows: Array.isArray(data) ? data : [data], loading: false, error: "" });
         }).catch(error => {
@@ -46,6 +48,7 @@ export const teacherMatchesSearch = (row, search, fields) => fields.some(field =
     String(row[field] ?? "").toLocaleLowerCase("es-CL").includes(search.trim().toLocaleLowerCase("es-CL"))
 );
 
+// validate and convert the final grade
 export function parseFinalGrade(value) {
     if (/\s/u.test(value) || !/^[1-7](?:[.,][0-9])?$/.test(value)) {
         throw new Error("Ingresa una nota entre 1,0 y 7,0 con un máximo de un decimal.");

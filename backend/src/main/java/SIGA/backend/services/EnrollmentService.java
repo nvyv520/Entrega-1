@@ -124,6 +124,9 @@ public class EnrollmentService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Periodo academico no encontrado");
         }
 
+        // reload the period after acquiring its lock
+        entityManager.refresh(period);
+
         if (period.getStatus() != AcademicPeriodStatus.ABIERTO) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El periodo academico debe estar abierto");
         }
@@ -141,11 +144,14 @@ public class EnrollmentService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Estudiante no encontrado");
         }
 
+        // reload the student status after acquiring the lock
+        entityManager.refresh(student);
+
         return student;
     }
 
 
-    // Finds the internal record used to confirm the student's selection.
+    // find the prior administrative matriculation for the student and period
     private PeriodMatriculationEntity findMatriculation(Long studentId, Long periodId) {
         return matriculationRepository.findByStudentIdAndAcademicPeriodId(studentId, periodId).orElseThrow(() -> 
                 new ResponseStatusException(HttpStatus.CONFLICT, "El estudiante no está matriculado en este período académico"));
@@ -174,11 +180,14 @@ public class EnrollmentService {
 
     // find and lock section for capacity changes
     private SectionEntity findLockedSectionById(Long id) {
-        SectionEntity section = entityManager.find(SectionEntity.class, id, LockModeType.PESSIMISTIC_WRITE);
+        SectionEntity section = entityManager.find(SectionEntity.class, id);
 
         if (section == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Seccion no encontrada");
         }
+
+        // lock and reload the section, including its current version and capacity
+        entityManager.refresh(section, LockModeType.PESSIMISTIC_WRITE);
 
         return section;
     }
@@ -191,7 +200,7 @@ public class EnrollmentService {
     }
 
 
-    //Validates the enrollment conditions
+    // validates the enrollment conditions
     private void validateEnrollment(StudentEntity student, SectionEntity section) {
 
         validateStudentStatus(student);
@@ -641,7 +650,7 @@ public class EnrollmentService {
         // Validate student status
         validateStudentStatus(student);
 
-        // Requires the internal record created when the selection was saved.
+        // require a prior administrative matriculation before confirming the selection
         findMatriculation(studentId, periodId);
 
         // Get student enrollments

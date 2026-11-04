@@ -7,6 +7,7 @@ import "./index.css";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { CssBaseline } from "@mui/material";
 
+// initialize login before rendering the application
 keycloak.init({
     onLoad: "login-required",
     pkceMethod: "S256",

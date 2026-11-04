@@ -30,6 +30,7 @@ class AcademicProcessesIT {
   @Autowired EntityManager em;
   @Autowired EnrollmentService enrollmentService;
   @Autowired StudentService studentService;
+  @Autowired PeriodMatriculationService matriculationService;
   @MockitoBean KeycloakAdminService keycloak;
   @Autowired GradeService gradeService;
   @Autowired AcademicPeriodService periodService;
@@ -398,5 +399,42 @@ class AcademicProcessesIT {
         AcademicPeriodStatus.ABIERTO,
         em.find(AcademicPeriodEntity.class, period.getId()).getStatus());
     assertEquals(Status.ACTIVA, sections.findById(section.getId()).orElseThrow().getStatus());
+  }
+
+  @Test
+  void externalMatriculationCanBeEnabledAndCorrectedForAnExistingStudent() {
+    matriculationService.updateMatriculationStatus(student.getId(), period.getId(), true);
+    em.flush();
+    assertTrue(
+        matriculations.existsByStudentIdAndAcademicPeriodId(student.getId(), period.getId()));
+    matriculationService.updateMatriculationStatus(student.getId(), period.getId(), false);
+    em.flush();
+    assertFalse(
+        matriculations.existsByStudentIdAndAcademicPeriodId(student.getId(), period.getId()));
+    rejects(409, () -> enrollmentService.createEnrollment(request()));
+  }
+
+  @Test
+  void externalMatriculationCannotBeRemovedWithActiveEnrollments() {
+    savedEnrollment(false);
+    em.flush();
+    rejects(
+        409,
+        () ->
+            matriculationService.updateMatriculationStatus(student.getId(), period.getId(), false));
+    assertTrue(
+        matriculations.existsByStudentIdAndAcademicPeriodId(student.getId(), period.getId()));
+  }
+
+  @Test
+  void externalMatriculationCannotBeChangedInAClosedPeriod() {
+    period.setStatus(AcademicPeriodStatus.CERRADO);
+    em.flush();
+    rejects(
+        409,
+        () ->
+            matriculationService.updateMatriculationStatus(student.getId(), period.getId(), true));
+    assertFalse(
+        matriculations.existsByStudentIdAndAcademicPeriodId(student.getId(), period.getId()));
   }
 }

@@ -3,6 +3,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { Alert, Button, Stack } from "@mui/material";
 import keycloak from "./keycloak";
 
+// validate the user role before showing the route
 function ProtectedRoute({ roles }) {
     const location = useLocation();
     if (!keycloak.authenticated) {

@@ -269,7 +269,7 @@ public class SubjectService {
         // Checks the subject enrollments
         // Preserves the academic records
         if (enrollmentRepository.existsBySection_Subject_Id(id)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "No es posible eliminar la asigantura, ya que forma parte de historiales academicos");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "No es posible eliminar la asignatura, ya que forma parte de historiales academicos");
         }
 
         // Checks for associated sections or active prerequisite references

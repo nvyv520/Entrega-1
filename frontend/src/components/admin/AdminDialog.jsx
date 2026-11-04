@@ -58,6 +58,7 @@ export function AdminForm({ title, children, onClose, onSubmit, submitLabel = "G
         try {
             // Reloads the record before choosing the field to edit
             if (recordEndpoint) {
+                // get the latest record (GET /api{recordEndpoint})
                 const { data } = await http.get(recordEndpoint);
                 onLoadRecord(data);
             }
@@ -131,6 +132,7 @@ AdminForm.propTypes = {
     onRemove: PropTypes.func, removeDisabled: PropTypes.bool, readOnly: PropTypes.bool, submitDisabled: PropTypes.bool, editNotice: PropTypes.string
 };
 
+// get the related records from the endpoint provided by the page
 export function AdminQuery({ title, endpoint, columns, onClose, sortRows }) {
     const records = useAdminRecords(endpoint);
     return <Dialog open onClose={onClose} fullWidth maxWidth="lg" sx={adminContentSx}>

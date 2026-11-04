@@ -9,11 +9,15 @@ import io.swagger.v3.oas.models.security.Scopes;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class OpenApiConfig {
+
+    @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
+    private String issuerUri;
 
     @Bean
     public OpenAPI customOpenAPI() {
@@ -31,10 +35,10 @@ public class OpenApiConfig {
                                         .flows(new OAuthFlows()
                                                 .authorizationCode(new OAuthFlow()
                                                         .authorizationUrl(
-                                                                "http://localhost:8081/realms/SIGA/protocol/openid-connect/auth"
+                                                                issuerUri.replaceAll("/+$", "") + "/protocol/openid-connect/auth"
                                                         )
                                                         .tokenUrl(
-                                                                "http://localhost:8081/realms/SIGA/protocol/openid-connect/token"
+                                                                issuerUri.replaceAll("/+$", "") + "/protocol/openid-connect/token"
                                                         )
                                                         .scopes(new Scopes()
                                                                 .addString("openid", "Iniciar sesión con Keycloak")

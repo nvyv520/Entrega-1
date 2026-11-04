@@ -31,6 +31,7 @@ const days = [
 
 const blocks = [1, 2, 3, 4, 5, 6];
 
+// get confirmed courses through studentAcademic.js and subject.service.js
 function StudentCourses() {
 
     const [verified, setVerified] = useState(false);

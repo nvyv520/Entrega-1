@@ -32,6 +32,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 @Configuration
 public class SecurityConfig {
 
+    @Value("${siga.security.cors.allowed-origins:http://localhost:5173}")
+    private String allowedOrigins = "http://localhost:5173";
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
@@ -271,7 +274,8 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         configuration.setAllowedOrigins(
-                List.of("http://localhost:5173")
+                java.util.Arrays.stream(allowedOrigins.split(","))
+                        .map(String::trim).filter(origin -> !origin.isEmpty()).toList()
         );
 
         configuration.setAllowedMethods(

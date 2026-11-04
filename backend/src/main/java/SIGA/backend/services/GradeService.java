@@ -86,7 +86,7 @@ public class GradeService {
     }
 
 
-    //get grades by student
+    // get grades by student
     @Transactional (readOnly = true)
     public List<GradeResponseDTO> getGradesByStudent(Long studentId) {
         List<GradeEntity> grades = gradeRepository.findByEnrollment_Student_Id(studentId);
@@ -94,7 +94,7 @@ public class GradeService {
     }
 
 
-    // get grades by acadmeic period
+    // get grades by academic period
     @Transactional (readOnly = true)
     public List<GradeResponseDTO> getGradesByAcademicPeriod(Long periodId) {
         List<GradeEntity> grades = gradeRepository.findByEnrollment_AcademicPeriod_Id(periodId);
@@ -204,6 +204,9 @@ public class GradeService {
         if (period == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Periodo academico no encontrado");
         }
+
+        // reload the period after acquiring its lock
+        entityManager.refresh(period);
 
         if (period.getStatus() != AcademicPeriodStatus.ABIERTO) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El periodo academico esta cerrado");

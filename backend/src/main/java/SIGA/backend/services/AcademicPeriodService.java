@@ -64,14 +64,14 @@ public class AcademicPeriodService {
     }
 
 
-    // find acdemic period by id
+    // find academic period by id
     private AcademicPeriodEntity findAcademicPeriodById(Long id) {
         return academicPeriodRepository.findById(id).orElseThrow(() ->
                 new ResponseStatusException(HttpStatus.NOT_FOUND, "Periodo academico no encontrado"));
     }
 
 
-    // get acadmeic period by id
+    // get academic period by id
     @Transactional (readOnly = true)
     public AcademicPeriodResponseDTO getAcademicPeriodById(Long id) {
         AcademicPeriodEntity period =  findAcademicPeriodById(id);
@@ -88,7 +88,7 @@ public class AcademicPeriodService {
     }
 
 
-    // get acadmeic period by year
+    // get academic period by year
     @Transactional (readOnly = true)
     public List<AcademicPeriodResponseDTO> getAcademicPeriodsByYear(Integer year) {
         List<AcademicPeriodEntity> periods = academicPeriodRepository.findByYear(year);
@@ -96,7 +96,7 @@ public class AcademicPeriodService {
     }
 
 
-    // get acadmeic period by status
+    // get academic period by status
     @Transactional (readOnly = true)
     public List<AcademicPeriodResponseDTO> getAcademicPeriodsByStatus(AcademicPeriodStatus status) {
         List<AcademicPeriodEntity> periods = academicPeriodRepository.findByStatus(status);
@@ -104,7 +104,7 @@ public class AcademicPeriodService {
     }
 
 
-    // validate academci period data
+    // validate academic period data
     private void validateAcademicPeriodData(AcademicPeriodRequestDTO period) {
 
         // validate year
@@ -257,7 +257,7 @@ public class AcademicPeriodService {
 
     // update student academic status
     private void updateStudentAcademicStatus(StudentEntity student, Long currentPeriodId) {
-        // preserve final and administrative statuses
+        // preserve final academic statuses
         if (student.getStatus() == StudentStatus.EGRESADO || student.getStatus() == StudentStatus.ELIMINADO) {
             return;
         }

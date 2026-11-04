@@ -2,6 +2,7 @@
 import axios from "axios";
 import keycloak from "./auth/keycloak";
 
+// set the backend URL; service endpoints are relative to /api
 const http = axios.create({
     baseURL: import.meta.env.VITE_API_URL || "http://localhost:8080/api",
     headers: {

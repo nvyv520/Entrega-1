@@ -72,7 +72,7 @@ class EnrollmentAuthorizationTests {
         when(students.findByKeycloakSubject("student-sub")).thenReturn(Optional.of(student));
         when(entityManager.find(AcademicPeriodEntity.class, 3L, LockModeType.PESSIMISTIC_WRITE)).thenReturn(period);
         when(entityManager.find(StudentEntity.class, 5L, LockModeType.PESSIMISTIC_WRITE)).thenReturn(student);
-        when(entityManager.find(SectionEntity.class, 10L, LockModeType.PESSIMISTIC_WRITE)).thenReturn(section);
+        when(entityManager.find(SectionEntity.class, 10L)).thenReturn(section);
         when(matriculations.findByStudentIdAndAcademicPeriodId(5L, 3L)).thenReturn(Optional.of(matriculation));
         when(matriculations.existsByStudentIdAndAcademicPeriodId(5L, 3L)).thenReturn(true);
         when(enrollments.findByStudentIdAndAcademicPeriodId(5L, 3L)).thenReturn(List.of(enrollment));
@@ -91,7 +91,7 @@ class EnrollmentAuthorizationTests {
         var order = inOrder(entityManager);
         order.verify(entityManager).find(AcademicPeriodEntity.class, 3L, LockModeType.PESSIMISTIC_WRITE);
         order.verify(entityManager).find(StudentEntity.class, 5L, LockModeType.PESSIMISTIC_WRITE);
-        order.verify(entityManager).find(SectionEntity.class, 10L, LockModeType.PESSIMISTIC_WRITE);
+        order.verify(entityManager).refresh(section, LockModeType.PESSIMISTIC_WRITE);
     }
 
     @Test

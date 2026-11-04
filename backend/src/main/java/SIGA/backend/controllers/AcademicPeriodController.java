@@ -34,7 +34,7 @@ public class AcademicPeriodController {
 
     // get all academic periods
     @GetMapping 
-    @Operation (summary = "Get all acadmeic periods")
+    @Operation (summary = "Get all academic periods")
     @ApiResponse (responseCode = "200", description = "Academic periods retrieved successfully")
     public ResponseEntity<List<AcademicPeriodResponseDTO>> getAllAcademicPeriods() {
         List<AcademicPeriodResponseDTO> periods = academicPeriodService.getAllAcademicPeriods();
@@ -93,7 +93,7 @@ public class AcademicPeriodController {
     @Operation (summary = "Create a new academic period")
     @ApiResponses ({
         @ApiResponse (responseCode = "201", description = "Academic period created successfully"),
-        @ApiResponse (responseCode = "400", description = "Invalid acadmeic period data"),
+        @ApiResponse (responseCode = "400", description = "Invalid academic period data"),
         @ApiResponse (responseCode = "409", description = "Academic period already exists") 
     })
     public ResponseEntity<AcademicPeriodResponseDTO> createAcademicPeriod(@Valid @RequestBody AcademicPeriodRequestDTO period) {

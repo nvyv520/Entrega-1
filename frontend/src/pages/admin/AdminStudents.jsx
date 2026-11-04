@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from "@mui/material";import http from "../../http-common";
+import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import http from "../../http-common";
 import { normalizePersonField, preparePersonFields } from "../../services/adminPersonValidation";
+import StudentMatriculationDialog from "../../components/admin/StudentMatriculationDialog";
 import AdminTable from "../../components/admin/AdminTable";
 import { AdminForm, AdminQuery } from "../../components/admin/AdminDialog";
 import { matchesFilter, matchesSearch, saveAdminFields, useAdminRecords } from "../../services/adminAcademic";
@@ -8,17 +10,24 @@ import { matchesFilter, matchesSearch, saveAdminFields, useAdminRecords } from "
 const fields = [["rut", "RUT", 12], ["firstName", "Nombre", 100], ["lastName", "Apellido", 100], ["email", "Correo", 300]];
 
 function AdminStudents() {
+    // GET /api/students
     const students = useAdminRecords("/students");
+    // GET /api/careers
     const careers = useAdminRecords("/careers");
+    // GET /api/study-plans
     const plans = useAdminRecords("/study-plans");
+    // GET /api/enrollments
     const enrollments = useAdminRecords("/enrollments");
+    // GET /api/period-matriculations
     const matriculations = useAdminRecords("/period-matriculations");
+    // GET /api/academic-periods
     const periods = useAdminRecords("/academic-periods");
     const [search, setSearch] = useState("");
     const [careerId, setCareerId] = useState("");
     const [studyPlanId, setStudyPlanId] = useState("");
     const [status, setStatus] = useState("");
     const [form, setForm] = useState(null);
+    const [matriculationStudent, setMatriculationStudent] = useState(null);
     const [editField, setEditField] = useState("");
     const [fieldErrors, setFieldErrors] = useState({});
     const [remove, setRemove] = useState(null);
@@ -79,6 +88,7 @@ function AdminStudents() {
         </>} />
         {form && <AdminForm title={`${form.id ? "Editar" : "Registrar"} estudiante`} onClose={() => setForm(null)} submitDisabled={!form.id && form.matriculated === "yes" && (periods.loading || Boolean(periods.error) || !periods.rows.some(row => row.status === "ABIERTO" && String(row.id) === String(form.academicPeriodId)))} onSubmit={async () => {
             if (form.id && editField === "status") {
+                // update academic status (PATCH /api/students/{id}/status)
                 await http.patch(`/students/${form.id}/status`, null, { params: { status: form.status } });
             } else {
                 const data = { ...Object.fromEntries(fields.map(([field]) => [field, form[field]])), careerId: Number(form.careerId), studyPlanId: form.studyPlanId ? Number(form.studyPlanId) : null };
@@ -88,6 +98,7 @@ function AdminStudents() {
                     delete data.studyPlanId;
                     data.matriculated = form.matriculated === "yes";
                     data.academicPeriodId = data.matriculated ? Number(form.academicPeriodId) : null;
+                    // register the student and optional matriculation (POST /api/students)
                     const response = await http.post("/students", data);
                     setCredentials({
                         username: response.data.username,
@@ -99,8 +110,12 @@ function AdminStudents() {
         }} editOptions={form.id ? [
             { value: "rut", label: "RUN" }, { value: "name", label: "Nombre" }, { value: "email", label: "Correo electrónico" },
             { value: "relations", label: "Carrera y plan", disabled: Boolean(relationsLocked) || !selectorsReady },
+            { value: "matriculation", label: "Matrícula" },
             { value: "status", label: "Estado académico", disabled: ["EGRESADO", "ELIMINADO"].includes(form.status) }
-        ] : undefined} selectedOption={editField} onSelectOption={value => { setFieldErrors({}); setEditField(value); }} recordEndpoint={form.id ? `/students/${form.id}` : undefined} onLoadRecord={setForm} onRemove={() => setRemove(form)} removeDisabled={enrollments.loading || matriculations.loading || Boolean(enrollments.error || matriculations.error) || hasHistory(form.id) || matriculations.rows.some(row => row.studentId === form.id)}>
+        ] : undefined} selectedOption={editField} onSelectOption={value => {
+            if (value === "matriculation") { setMatriculationStudent(form); setForm(null); return; }
+            setFieldErrors({}); setEditField(value);
+        }} recordEndpoint={form.id ? `/students/${form.id}` : undefined} onLoadRecord={setForm} onRemove={() => setRemove(form)} removeDisabled={enrollments.loading || matriculations.loading || Boolean(enrollments.error || matriculations.error) || hasHistory(form.id) || matriculations.rows.some(row => row.studentId === form.id)}>
             {fields.filter(([field]) => !form.id || field === editField || (editField === "name" && ["firstName", "lastName"].includes(field))).map(([field, label, maxLength]) => <TextField key={field} required label={label} type="text" value={form[field]} error={Boolean(fieldErrors[field])} helperText={fieldErrors[field]} onBlur={field === "email" ? undefined : () => formatField(field)} slotProps={{ htmlInput: { maxLength, ...(field === "email" ? { inputMode: "email" } : {}) } }} onChange={event => { setForm({ ...form, [field]: event.target.value }); setFieldErrors(errors => ({ ...errors, [field]: "" })); }} />)}
             {(!form.id || editField === "relations") && <TextField required select label="Carrera" disabled={Boolean(relationsLocked)} value={form.careerId} onChange={event => setForm({ ...form, careerId: event.target.value, studyPlanId: "" })}>
                 {careers.rows.filter(row => row.status === "ACTIVA" || row.id === form.careerId).map(row => <MenuItem key={row.id} value={row.id}>{row.code} — {row.name}</MenuItem>)}
@@ -109,13 +124,13 @@ function AdminStudents() {
                 <MenuItem value="">Asignar plan vigente al cambiar de carrera</MenuItem>
                 {plans.rows.filter(row => String(row.careerId) === String(form.careerId)).map(row => <MenuItem key={row.id} value={row.id}>{row.identifier} ({row.careerCode}) — {row.status}</MenuItem>)}
             </TextField>}
-            {(!form.id || editField === "relations") && <Alert severity="info">El backend asigna el plan vigente al registrar. No se permite cambiar carrera o plan si existe información académica.</Alert>}
+            {(!form.id || editField === "relations") && <Alert severity="info">El plan vigente se asigna al registrar. No se permite cambiar carrera o plan si existe información académica.</Alert>}
             {!form.id && <>
                 <TextField required select label="Matriculado" value={form.matriculated} onChange={event => setForm({ ...form, matriculated: event.target.value, academicPeriodId: "" })}>
                     <MenuItem value="yes">Sí</MenuItem>
                     <MenuItem value="no">No</MenuItem>
                 </TextField>
-                {form.matriculated === "yes" && <TextField required select label="Período de matrícula" value={form.academicPeriodId} disabled={periods.loading || Boolean(periods.error)} onChange={event => setForm({ ...form, academicPeriodId: event.target.value })} helperText={periods.loading ? "Cargando períodos…" : periods.error ? "No se pudieron cargar los períodos. Reintenta la consulta." : !periods.rows.some(row => row.status === "ABIERTO") ? "No hay períodos abiertos. Crea o habilita uno antes de registrar la matrícula." : "Selecciona el período académico al que corresponde la matrícula."}>
+                {form.matriculated === "yes" && <TextField required select label="Período de matrícula" value={form.academicPeriodId} disabled={periods.loading || Boolean(periods.error)} onChange={event => setForm({ ...form, academicPeriodId: event.target.value })} helperText={periods.loading ? "Cargando períodos…" : periods.error ? "No se pudieron cargar los períodos. Reintenta la consulta." : !periods.rows.some(row => row.status === "ABIERTO") ? "No hay períodos abiertos. Crea uno antes de registrar la matrícula." : "Selecciona el período académico al que corresponde la matrícula."}>
                     {periods.rows.filter(row => row.status === "ABIERTO").map(row => <MenuItem key={row.id} value={row.id}>{row.code}</MenuItem>)}
                 </TextField>}
                 <Alert severity="info">La matrícula habilita la inscripción de asignaturas en el período seleccionado. Si eliges No, el estudiante se registra sin matrícula y no podrá inscribir asignaturas.</Alert>
@@ -130,6 +145,7 @@ function AdminStudents() {
         {remove && <AdminForm title="Eliminar estudiante" submitLabel="Confirmar eliminación" onClose={() => setRemove(null)} onSubmit={async () => { await http.delete(`/students/${remove.id}`); saved(); setForm(null); }}>
             <Alert severity="warning">¿Estás segura de que deseas eliminar a {remove.firstName} {remove.lastName} ({remove.rut})? Esta acción es irreversible.</Alert>
         </AdminForm>}
+        {matriculationStudent && <StudentMatriculationDialog student={matriculationStudent} onClose={() => setMatriculationStudent(null)} onSaved={saved} />}
         {query && <AdminQuery {...query} onClose={() => setQuery(null)} />}
     
         {credentials && <Dialog open onClose={() => {

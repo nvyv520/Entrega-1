@@ -35,6 +35,7 @@ const days = [
 
 const blocks = [1, 2, 3, 4, 5, 6];
 
+// manage the student selection using enrollment.service.js endpoints
 function StudentEnrollment() {
 
     const [periods, setPeriods] = useState([]);

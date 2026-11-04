@@ -20,7 +20,9 @@ function TeacherSectionView({ grades = false }) {
     const section = catalog.sections.find(section => String(section.id) === selectedId
         && (sectionId || !periodId || String(section.academicPeriodId) === periodId));
     // Requests use an assigned section object, never a raw URL ID from another teacher.
+    // get section students (GET /api/sections/me/{sectionId}/students)
     const students = useTeacherRecords(section ? `/sections/me/${section.id}/students` : null);
+    // get section grades (GET /api/grades/me/sections/{sectionId})
     const sectionGrades = useTeacherRecords(grades && section ? `/grades/me/sections/${section.id}` : null);
     const [form, setForm] = useState(null);
     const [message, setMessage] = useState("");

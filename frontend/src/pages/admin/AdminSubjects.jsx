@@ -7,11 +7,17 @@ import { filterValues, filteredRecords, matchesFilter, matchesSearch, saveAdminF
 
 const numberFields = [["semester", "Semestre", 1, 4], ["theoryHours", "Horas de teoría", 0, 7], ["exerciseHours", "Horas de ejercicios", 0, 7], ["laboratoryHours", "Horas de laboratorio", 0, 7], ["sct", "Créditos SCT", 1, 7]];
 
+// manage subjects through /api/subjects using POST, PUT and DELETE
 function AdminSubjects() {
+    // GET /api/subjects
     const subjects = useAdminRecords("/subjects");
+    // GET /api/careers
     const careers = useAdminRecords("/careers");
+    // GET /api/study-plans
     const plans = useAdminRecords("/study-plans");
+    // GET /api/sections
     const sections = useAdminRecords("/sections");
+    // GET /api/enrollments
     const enrollments = useAdminRecords("/enrollments");
     const [search, setSearch] = useState("");
     const [careerId, setCareerId] = useState("");
@@ -68,7 +74,7 @@ function AdminSubjects() {
         ]} actions={row => <>
             <Button onClick={() => { setEditField(""); setForm({ ...row }); }}>Editar</Button>
         </>} />
-        <Alert severity="info">El semestre y el plan no son editables. Las horas se bloquean si hay secciones; las asignaturas con historial académico no admiten edición. El backend valida cada operación.</Alert>
+        <Alert severity="info">El semestre y el plan no son editables. Las horas se bloquean si hay secciones; las asignaturas con historial académico no admiten edición.</Alert>
         {form && <AdminForm title={`${form.id ? "Editar" : "Crear"} asignatura`} onClose={() => setForm(null)} onSubmit={async () => {
             // Validates nonnegative whole hours before saving TEL changes
             if ((!form.id || editField === "hours") && ["theoryHours", "exerciseHours", "laboratoryHours"].some(field => {

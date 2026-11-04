@@ -96,8 +96,8 @@ jobs:
             ${{ vars.DOCKERHUB_USERNAME }}/siga-${{ matrix.app }}:latest
             ${{ vars.DOCKERHUB_USERNAME }}/siga-${{ matrix.app }}:${{ github.sha }}
           build-args: |
-            VITE_API_URL=${{ vars.VITE_API_URL || 'http://localhost:8080/api' }}
-            VITE_KEYCLOAK_URL=${{ vars.VITE_KEYCLOAK_URL || 'http://localhost:8081' }}
+            VITE_API_URL=${{ vars.VITE_API_URL || '/api' }}
+            VITE_KEYCLOAK_URL=${{ vars.VITE_KEYCLOAK_URL || '/auth' }}
             VITE_KEYCLOAK_REALM=${{ vars.VITE_KEYCLOAK_REALM || 'SIGA' }}
             VITE_KEYCLOAK_CLIENT_ID=${{ vars.VITE_KEYCLOAK_CLIENT_ID || 'siga-frontend' }}
           cache-from: type=gha,scope=${{ matrix.app }}

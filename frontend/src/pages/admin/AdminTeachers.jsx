@@ -8,6 +8,7 @@ import { matchesFilter, matchesSearch, saveAdminFields, useAdminRecords } from "
 const fields = [["rut", "RUT", 12], ["firstName", "Nombre", 100], ["lastName", "Apellido", 100], ["email", "Correo", 300], ["professionalTitle", "Título profesional", 150], ["academicDegree", "Grado académico", 150]];
 
 function AdminTeachers() {
+    // GET /api/teachers
     const teachers = useAdminRecords("/teachers");
     const [search, setSearch] = useState("");
     const [status, setStatus] = useState("");
@@ -53,6 +54,7 @@ function AdminTeachers() {
         </>} />
         {form && <AdminForm title={`${form.id ? "Editar" : "Registrar"} docente`} onClose={() => setForm(null)} onSubmit={async () => {
             if (form.id && editField === "status") {
+                // update teacher status (PUT /api/teachers/{id}/status)
                 await http.put(`/teachers/${form.id}/status`, null, { params: { status: form.status } });
             } else {
                 const data = Object.fromEntries(fields.map(([field]) => [field, form[field]]));
@@ -60,6 +62,7 @@ function AdminTeachers() {
                 if (form.id) await saveAdminFields("/teachers", form.id, data, fields.map(([field]) => field), editField === "name" ? ["firstName", "lastName"] : [editField]);
                 else {
                     // Keeps the new account credentials only until the dialog closes
+                    // register the teacher and Keycloak account (POST /api/teachers)
                     const response = await http.post("/teachers", data);
                     setCredentials({
                         username: response.data.username,

@@ -6,6 +6,7 @@ import { AdminForm, AdminQuery } from "../../components/admin/AdminDialog";
 import { filterValues, matchesFilter, matchesSearch, useAdminRecords } from "../../services/adminAcademic";
 
 function AdminPeriods() {
+    // GET /api/academic-periods
     const periods = useAdminRecords("/academic-periods");
     const [search, setSearch] = useState("");
     const [year, setYear] = useState("");
@@ -54,6 +55,7 @@ function AdminPeriods() {
             submitDisabled={closingCode !== closing.code || closing.status !== "ABIERTO"}
             onClose={() => { setClosing(null); setClosingCode(""); }} onSubmit={async () => {
                 if (closingCode !== closing.code || closing.status !== "ABIERTO") throw new Error("Escribe el identificador exacto de un período abierto para confirmar el cierre.");
+                // close the period (PATCH /api/academic-periods/{id}/close)
                 await http.patch(`/academic-periods/${closing.id}/close`);
                 periods.reload();
                 setMessage("Período cerrado correctamente.");

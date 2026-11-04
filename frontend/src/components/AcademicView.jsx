@@ -8,10 +8,12 @@ import {
 import http from "../http-common";
 import careerService from "../services/career.service";
 
+// show data from the endpoint provided by the route
 function AcademicView({ title, endpoint, columns, sectionLinks = false }) {
     const [result, setResult] = useState({ endpoint: null, rows: [], error: null });
     useEffect(() => {
         let active = true;
+        // GET /api{endpoint}
         const request = endpoint === "/careers" ? careerService.getAllCareers() : http.get(endpoint);
         request.then(({ data }) => {
             if (active) setResult({ endpoint, rows: Array.isArray(data) ? data : [data], error: null });

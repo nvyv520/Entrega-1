@@ -137,16 +137,17 @@ public class StudyPlanService {
 
         StudyPlanEntity studyPlan = findStudyPlanById(id);
 
+        // lock career and reload the plan before changing its status
+        Long careerId = studyPlan.getCareer().getId();
+        entityManager.find(CareerEntity.class, careerId, LockModeType.PESSIMISTIC_WRITE);
+        entityManager.refresh(studyPlan);
+
         // deactivate previous study plan
         if (status == StudyPlanStatus.VIGENTE) {
-            Long careerId = studyPlan.getCareer().getId();
-
-            // lock career while changing current study plan
-            entityManager.find(CareerEntity.class, careerId, LockModeType.PESSIMISTIC_WRITE);
-
             studyPlanRepository.findByCareerIdAndStatus(careerId, StudyPlanStatus.VIGENTE)
                 .ifPresent(current -> {
                     if (!current.getId().equals(id)) {
+                        entityManager.refresh(current);
                         current.setStatus(StudyPlanStatus.NO_VIGENTE);
                         studyPlanRepository.saveAndFlush(current);
                     }

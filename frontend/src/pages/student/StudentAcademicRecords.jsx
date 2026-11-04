@@ -9,6 +9,7 @@ import { firstOpenAcademicPeriod, studentErrorMessage } from "../../services/stu
 import enrollmentService from "../../services/enrollment.service";
 import http from "../../http-common";
 
+// show current grades or the academic history
 function StudentAcademicRecords({ gradesOnly = false }) {
     const [records, setRecords] = useState([]);
     const [periodCode, setPeriodCode] = useState("");
@@ -21,6 +22,7 @@ function StudentAcademicRecords({ gradesOnly = false }) {
         setError("");
         const loadRecords = async () => {
             try {
+                // GET /api/academic-periods
                 const periodsResponse = await http.get("/academic-periods");
                 let rows = [];
                 let code = "";
@@ -29,6 +31,8 @@ function StudentAcademicRecords({ gradesOnly = false }) {
                     const period = firstOpenAcademicPeriod(periodsResponse.data);
                     code = period?.code || "";
                     if (period) {
+                        // get enrollments, grades, sections and subjects for the open period
+                        // grades endpoint: GET /api/grades/me
                         const [enrollmentsResponse, gradesResponse, sectionsResponse, subjectsResponse] = await Promise.all([
                             enrollmentService.getCurrentEnrollments(), http.get("/grades/me"),
                             enrollmentService.getSectionsByAcademicPeriod(period.id), http.get("/subjects")

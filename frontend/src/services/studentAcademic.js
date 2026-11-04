@@ -10,6 +10,8 @@ export const firstOpenAcademicPeriod = periods => periods.filter(period => perio
     (a, b) => Number(a.year) - Number(b.year) || Number(a.semester) - Number(b.semester)
 )[0] || null;
 
+// get the confirmed courses for the first open period
+// endpoints are defined in enrollment.service.js
 export async function getCurrentSelection() {
     const periodsResponse = await enrollmentService.getOpenAcademicPeriods();
     const period = firstOpenAcademicPeriod(periodsResponse.data);

@@ -6,7 +6,9 @@ import { AdminForm, AdminQuery } from "../../components/admin/AdminDialog";
 import { matchesFilter, matchesSearch, saveAdminFields, useAdminRecords } from "../../services/adminAcademic";
 
 function AdminCareers() {
+    // GET /api/careers
     const careers = useAdminRecords("/careers");
+    // GET /api/study-plans
     const plans = useAdminRecords("/study-plans");
     const [tab, setTab] = useState(0);
     const [search, setSearch] = useState("");
@@ -19,6 +21,7 @@ function AdminCareers() {
     const [query, setQuery] = useState(null);
     const [message, setMessage] = useState("");
     const records = tab === 0 ? careers : plans;
+    // select /api/careers or /api/study-plans according to the active tab
     const endpoint = tab === 0 ? "/careers" : "/study-plans";
     const title = tab === 0 ? "Carreras" : "Planes de estudio";
     
@@ -36,6 +39,7 @@ function AdminCareers() {
         setMessage("Operación realizada correctamente.");
     };
 
+    // create, update or change status using the selected endpoint
     const save = async () => {
         // Uses the status endpoint separately from the general record update
         if (form.id && editField === "status") {

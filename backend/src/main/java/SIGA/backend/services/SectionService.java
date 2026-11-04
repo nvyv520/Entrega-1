@@ -94,7 +94,7 @@ public class SectionService {
     }
 
 
-    // get subjects by status 
+    // get sections by status
     @Transactional (readOnly = true)
     public List<SectionResponseDTO> getSectionsByStatus(Status status) {
         List<SectionEntity> sections = sectionRepository.findByStatus(status);
@@ -223,6 +223,9 @@ public class SectionService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Periodo academico no encontrado");
         }
 
+        // reload the period after acquiring its lock
+        entityManager.refresh(period);
+
         validateAcademicPeriod(period);
 
         return period;
@@ -240,7 +243,8 @@ public class SectionService {
         Set<String> blocks = new HashSet<>(section.getBlocks());
 
         SubjectEntity subject = findSubjectById(section.getSubjectId());
-        AcademicPeriodEntity period = lockOpenPeriod(section.getAcademicPeriodId());        TeacherEntity teacher = findTeacherById(section.getTeacherId());
+        AcademicPeriodEntity period = lockOpenPeriod(section.getAcademicPeriodId());
+        TeacherEntity teacher = findTeacherById(section.getTeacherId());
 
         // Validates the period and teacher 
         validateAcademicPeriod(period);

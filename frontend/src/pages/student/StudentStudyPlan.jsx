@@ -80,6 +80,7 @@ const statusStyles = {
     }
 };
 
+// get the student curriculum and history through subject.service.js
 function StudentStudyPlan() {
 
 

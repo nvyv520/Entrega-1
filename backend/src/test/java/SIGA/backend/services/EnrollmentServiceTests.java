@@ -49,7 +49,7 @@ class EnrollmentServiceTests {
     when(em.find(AcademicPeriodEntity.class, 3L)).thenReturn(entity.getAcademicPeriod());
     when(em.find(StudentEntity.class, 5L, LockModeType.PESSIMISTIC_WRITE))
         .thenReturn(entity.getStudent());
-    when(em.find(SectionEntity.class, 10L, LockModeType.PESSIMISTIC_WRITE))
+    when(em.find(SectionEntity.class, 10L))
         .thenReturn(entity.getSection());
     when(matriculations.findByStudentIdAndAcademicPeriodId(5L, 3L))
         .thenReturn(Optional.of(matriculation));
@@ -174,7 +174,7 @@ class EnrollmentServiceTests {
     entity.getSection().setStatus(Status.ACTIVA);
     entity.getSection().getSubject().getStudyPlan().setId(99L);
     rejects(409, () -> s.createEnrollment(r));
-    when(em.find(SectionEntity.class, 10L, LockModeType.PESSIMISTIC_WRITE)).thenReturn(null);
+    when(em.find(SectionEntity.class, 10L)).thenReturn(null);
     rejects(404, () -> s.createEnrollment(r));
   }
 

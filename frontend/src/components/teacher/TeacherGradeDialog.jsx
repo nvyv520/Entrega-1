@@ -23,6 +23,7 @@ function TeacherGradeDialog({ student, section, onClose, onSaved }) {
                 enrollmentId: student.grade?.enrollmentId ?? student.enrollmentId,
                 finalGrade: parseFinalGrade(value)
             };
+            // create or update the final grade (POST /api/grades or PUT /api/grades/{id})
             const response = student.grade
                 ? await http.put(`/grades/${student.grade.id}`, data)
                 : await http.post("/grades", data);

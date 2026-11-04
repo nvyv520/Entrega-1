@@ -29,6 +29,8 @@ import TeacherSections from "./pages/teacher/TeacherSections";
 import TeacherSectionView from "./pages/teacher/TeacherSectionView";
 import TeacherProfile from "./pages/teacher/TeacherProfile";
 
+// define frontend routes for each role
+// API endpoints are called from pages and services
 // Navigation options for each role
 const navigationItems = {
     ADMIN: [

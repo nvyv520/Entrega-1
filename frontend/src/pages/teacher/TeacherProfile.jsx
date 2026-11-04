@@ -4,6 +4,7 @@ import { useTeacherRecords } from "../../services/teacherAcademic";
 const fields = [["rut", "RUN"], ["firstName", "Nombre"], ["lastName", "Apellido"], ["email", "Correo"], ["professionalTitle", "Título profesional"], ["academicDegree", "Grado académico"], ["status", "Estado"]];
 
 function TeacherProfile() {
+    // GET /api/teachers/me
     const profile = useTeacherRecords("/teachers/me");
     return <Stack spacing={3}>
         <Typography variant="h5" fontWeight={600}>Mi perfil</Typography>

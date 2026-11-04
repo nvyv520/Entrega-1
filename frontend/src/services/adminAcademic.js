@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import http from "../http-common";
 import careerService from "./career.service";
 
+// get the backend error message
 export function adminErrorMessage(error) {
     const data = error.response?.data;
     const reason = typeof data === "string" ? data : data?.detail || data?.message;
@@ -29,6 +30,7 @@ export function useAdminRecords(endpoint) {
         let active = true;
         if (!endpoint) return;
         setResult({ endpoint, rows: [], error: "", loading: true });
+        // GET /api{endpoint}
         const request = endpoint === "/careers" ? careerService.getAllCareers() : http.get(endpoint);
         request.then(({ data }) => {
             if (active) setResult({ endpoint, rows: Array.isArray(data) ? data : [data], error: "", loading: false });
@@ -73,9 +75,11 @@ export function filteredRecords(records, rows, dependencies = []) {
 
 // PUT still receives its complete DTO; unselected fields come from a fresh GET.
 export async function saveAdminFields(endpoint, id, values, dtoFields, editedFields) {
+    // get the current record before editing (GET /api{endpoint}/{id})
     const { data: current } = await http.get(`${endpoint}/${id}`);
     const data = Object.fromEntries(dtoFields.map(field => [
         field, editedFields.includes(field) ? values[field] : current[field]
     ]));
+    // update the selected fields (PUT /api{endpoint}/{id})
     return http.put(`${endpoint}/${id}`, data);
 }

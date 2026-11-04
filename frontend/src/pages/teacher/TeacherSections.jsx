@@ -4,6 +4,7 @@ import TeacherTable from "../../components/teacher/TeacherTable";
 import { teacherMatchesSearch, useTeacherCatalog } from "../../services/teacherAcademic";
 
 function TeacherSections() {
+    // get the assigned sections loaded by TeacherAcademicProvider
     const catalog = useTeacherCatalog();
     const location = useLocation();
     const [params, setParams] = useSearchParams();

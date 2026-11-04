@@ -3,17 +3,24 @@ import { Alert, Button, MenuItem, Stack, TextField, Typography } from "@mui/mate
 import AdminTable from "../../components/admin/AdminTable";
 import { filterValues, filteredRecords, matchesFilter, useAdminRecords } from "../../services/adminAcademic";
 
+// consult enrollments; filters are applied to the loaded records
 function AdminEnrollments() {
+    // GET /api/academic-periods
     const periods = useAdminRecords("/academic-periods");
+    // GET /api/students
     const students = useAdminRecords("/students");
+    // GET /api/careers
     const careers = useAdminRecords("/careers");
+    // GET /api/sections
     const sections = useAdminRecords("/sections");
+    // GET /api/subjects
     const subjects = useAdminRecords("/subjects");
     const [periodId, setPeriodId] = useState("");
     const [careerId, setCareerId] = useState("");
     const [status, setStatus] = useState("");
     const [studentId, setStudentId] = useState("");
     const [sectionId, setSectionId] = useState("");
+    // GET /api/enrollments
     const enrollments = useAdminRecords("/enrollments");
     const studentName = id => {
         const row = students.rows.find(student => student.id === id);

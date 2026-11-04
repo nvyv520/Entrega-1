@@ -12,3 +12,12 @@ target/
 # IDE
 .vscode/
 .idea/
+
+# Cloud credentials and exported identity data
+.env.cloud
+deploy/keycloak/import/*.json
+deploy/backups/
+deploy/tls/*.pem
+
+# Local PostgreSQL backups
+*.dump

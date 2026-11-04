@@ -2,9 +2,13 @@ import { Outlet } from "react-router-dom";
 import { TeacherContext, useTeacherRecords } from "../../services/teacherAcademic";
 import { firstOpenAcademicPeriod } from "../../services/studentAcademic";
 
+// load the teacher sections and their academic information
 function TeacherAcademicProvider() {
+    // GET /api/sections/me
     const assigned = useTeacherRecords("/sections/me");
+    // GET /api/subjects
     const subjects = useTeacherRecords("/subjects");
+    // GET /api/academic-periods
     const periods = useTeacherRecords("/academic-periods");
     const sources = [assigned, subjects, periods];
     const failed = sources.find(source => source.error);

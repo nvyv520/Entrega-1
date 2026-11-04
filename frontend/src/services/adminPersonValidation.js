@@ -1,3 +1,4 @@
+// validate and format the RUN before submitting the form
 export function normalizeRun(value) {
     if (/\s/u.test(value) || !/^(?:[1-9]\d{0,7}-?[\dkK]|[1-9]\d{0,2}(?:\.\d{3}){1,2}-[\dkK])$/.test(value)) {
         throw new Error("Ingresa un RUN con formato válido, sin espacios y terminado en un número o K.");
