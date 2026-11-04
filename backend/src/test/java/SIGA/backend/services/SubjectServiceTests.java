@@ -74,6 +74,7 @@ class SubjectServiceTests {
         r -> r.setExerciseHours(-1),
         r -> r.setLaboratoryHours(null),
         r -> r.setLaboratoryHours(-1),
+        r -> r.setTheoryHours(8),
         r -> r.setTheoryHours(9));
   }
 
@@ -84,6 +85,19 @@ class SubjectServiceTests {
     change.accept(r);
     rejects(400, () -> s.createSubject(r));
     verify(repo, never()).save(any());
+  }
+
+  @Test
+  void acceptsSevenTelHoursButRejectsEightOnCreateAndUpdate() {
+    var request = subjectRequest();
+    request.setTheoryHours(3);
+    request.setExerciseHours(2);
+    request.setLaboratoryHours(2);
+    s.createSubject(request);
+    s.updateSubject(8L, request);
+    request.setTheoryHours(4);
+    rejects(400, () -> s.createSubject(request));
+    rejects(400, () -> s.updateSubject(8L, request));
   }
 
   @Test

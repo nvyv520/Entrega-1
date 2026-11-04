@@ -5,7 +5,7 @@ import AdminTable from "../../components/admin/AdminTable";
 import { AdminForm } from "../../components/admin/AdminDialog";
 import { filterValues, filteredRecords, matchesFilter, matchesSearch, saveAdminFields, useAdminRecords } from "../../services/adminAcademic";
 
-const numberFields = [["semester", "Semestre", 1, 4], ["theoryHours", "Horas de teoría", 0, 8], ["exerciseHours", "Horas de ejercicios", 0, 8], ["laboratoryHours", "Horas de laboratorio", 0, 8], ["sct", "Créditos SCT", 1, 7]];
+const numberFields = [["semester", "Semestre", 1, 4], ["theoryHours", "Horas de teoría", 0, 7], ["exerciseHours", "Horas de ejercicios", 0, 7], ["laboratoryHours", "Horas de laboratorio", 0, 7], ["sct", "Créditos SCT", 1, 7]];
 
 function AdminSubjects() {
     const subjects = useAdminRecords("/subjects");
@@ -73,12 +73,12 @@ function AdminSubjects() {
             // Validates nonnegative whole hours before saving TEL changes
             if ((!form.id || editField === "hours") && ["theoryHours", "exerciseHours", "laboratoryHours"].some(field => {
                 const hours = Number(form[field]);
-                return form[field] == null || String(form[field]).trim() === "" || !Number.isInteger(hours) || hours < 0 || hours > 8;
+                return form[field] == null || String(form[field]).trim() === "" || !Number.isInteger(hours) || hours < 0 || hours >= 8;
             })) {
-                throw new Error("Las horas de teoría, ejercicios y laboratorio deben ser números enteros entre 0 y 8. El máximo total es de 8 horas TEL.");
+                throw new Error("Las horas de teoría, ejercicios y laboratorio deben ser números enteros entre 0 y 7. La suma de horas TEL debe ser inferior a 8.");
             }
-            if ((!form.id || editField === "hours") && Number(form.theoryHours) + Number(form.exerciseHours) + Number(form.laboratoryHours) > 8) {
-                throw new Error("Horas TEL: la suma de teoría, ejercicios y laboratorio no puede superar 8 horas semanales.");
+            if ((!form.id || editField === "hours") && Number(form.theoryHours) + Number(form.exerciseHours) + Number(form.laboratoryHours) >= 8) {
+                throw new Error("Horas TEL: la suma de teoría, ejercicios y laboratorio debe ser inferior a 8 horas semanales.");
             }
             const data = { code: form.code.trim(), name: form.name.trim(), studyPlanId: Number(form.studyPlanId), prerequisiteIds: form.prerequisiteIds.map(Number) };
             numberFields.forEach(([field]) => { data[field] = Number(form[field]); });

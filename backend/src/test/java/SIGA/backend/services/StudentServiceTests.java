@@ -6,6 +6,8 @@ import static org.mockito.Mockito.*;
 
 import SIGA.backend.entities.*;
 import SIGA.backend.repositories.*;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import java.util.*;
 import org.junit.jupiter.api.*;
 import org.springframework.transaction.support.*;
@@ -23,6 +25,7 @@ class StudentServiceTests {
   KeycloakAdminService keycloak;
   StudentService s;
   StudentEntity entity;
+  EntityManager em;
 
   @BeforeEach
   void setup() {
@@ -36,9 +39,10 @@ class StudentServiceTests {
     students = mock(StudentRepository.class);
     sections = mock(SectionRepository.class);
     keycloak = mock(KeycloakAdminService.class);
+    em = mock(EntityManager.class);
     s =
         new StudentService(
-            careers, plans, repo, enrollments, matriculations, grades, teachers, keycloak);
+            careers, plans, repo, enrollments, matriculations, grades, teachers, keycloak, em);
     entity = student();
     when(repo.findById(5L)).thenReturn(Optional.of(entity));
     when(repo.findByIdForUpdate(5L)).thenReturn(Optional.of(entity));
@@ -59,6 +63,48 @@ class StudentServiceTests {
   void cleanup() {
     if (TransactionSynchronizationManager.isSynchronizationActive())
       TransactionSynchronizationManager.clearSynchronization();
+  }
+
+  @Test
+  void registrationRecordsMatriculationOnlyWhenRequested() {
+    TransactionSynchronizationManager.initSynchronization();
+    s.createStudent(studentRequest());
+    verify(matriculations, never()).save(any());
+    var request = studentRequest();
+    request.setMatriculated(true);
+    request.setAcademicPeriodId(3L);
+    var period = period();
+    when(em.find(AcademicPeriodEntity.class, 3L, LockModeType.PESSIMISTIC_WRITE))
+        .thenReturn(period);
+    s.createStudent(request);
+    var record = org.mockito.ArgumentCaptor.forClass(PeriodMatriculationEntity.class);
+    verify(matriculations).save(record.capture());
+    assertEquals(period, record.getValue().getAcademicPeriod());
+    assertEquals("ana@example.cl", record.getValue().getStudent().getEmail());
+    assertFalse(record.getValue().getEnrollmentConfirmed());
+  }
+
+  @Test
+  void invalidMatriculationIsRejectedBeforeCreatingAccount() {
+    var request = studentRequest();
+    request.setMatriculated(null);
+    rejects(400, () -> s.createStudent(request));
+    request.setMatriculated(false);
+    request.setAcademicPeriodId(3L);
+    rejects(400, () -> s.createStudent(request));
+    request.setMatriculated(true);
+    request.setAcademicPeriodId(null);
+    rejects(400, () -> s.createStudent(request));
+    request.setAcademicPeriodId(3L);
+    rejects(404, () -> s.createStudent(request));
+    var period = period();
+    period.setStatus(AcademicPeriodStatus.CERRADO);
+    when(em.find(AcademicPeriodEntity.class, 3L, LockModeType.PESSIMISTIC_WRITE))
+        .thenReturn(period);
+    rejects(409, () -> s.createStudent(request));
+    verifyNoInteractions(keycloak);
+    verify(repo, never()).saveAndFlush(any());
+    verify(matriculations, never()).save(any());
   }
 
   @Test

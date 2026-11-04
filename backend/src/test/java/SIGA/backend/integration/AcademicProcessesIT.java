@@ -2,6 +2,7 @@ package SIGA.backend.integration;
 
 import static SIGA.backend.services.ServiceFixtures.*;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 import SIGA.backend.dtos.*;
 import SIGA.backend.entities.*;
@@ -19,6 +20,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -27,6 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
 class AcademicProcessesIT {
   @Autowired EntityManager em;
   @Autowired EnrollmentService enrollmentService;
+  @Autowired StudentService studentService;
+  @MockitoBean KeycloakAdminService keycloak;
   @Autowired GradeService gradeService;
   @Autowired AcademicPeriodService periodService;
   @Autowired EnrollmentRepository enrollments;
@@ -119,7 +123,9 @@ class AcademicProcessesIT {
   }
 
   @Test
-  void enrollmentSuccessCreatesReservationAndInternalMatriculation() {
+  void enrollmentSuccessUsesPriorMatriculation() {
+    em.persist(new PeriodMatriculationEntity(null, student, period, false));
+    em.flush();
     var result = enrollmentService.createEnrollment(request());
     reload();
     assertEquals(
@@ -160,11 +166,12 @@ class AcademicProcessesIT {
 
   @Test
   void enrollmentRejectionForNonRegularStudent() {
+    em.persist(new PeriodMatriculationEntity(null, student, period, false));
     student.setStatus(StudentStatus.POSTERGACION);
     em.flush();
     rejects(409, () -> enrollmentService.createEnrollment(request()));
     assertEquals(0, enrollments.count());
-    assertEquals(0, matriculations.count());
+    assertEquals(1, matriculations.count());
   }
 
   @Test
@@ -177,6 +184,7 @@ class AcademicProcessesIT {
 
   @Test
   void enrollmentRejectionWhenCapacityIsFull() {
+    em.persist(new PeriodMatriculationEntity(null, student, period, false));
     var other = student();
     other.setId(null);
     other.setRut("22.222.222-2");
@@ -192,6 +200,69 @@ class AcademicProcessesIT {
     rejects(409, () -> enrollmentService.createEnrollment(request()));
     assertTrue(enrollments.findByStudentId(student.getId()).isEmpty());
     assertEquals(1, enrollments.count());
+  }
+
+  @Test
+  void enrollmentRejectionWithoutPriorMatriculation() {
+    rejects(409, () -> enrollmentService.createEnrollment(request()));
+    assertEquals(0, enrollments.count());
+    assertEquals(0, matriculations.count());
+  }
+
+  StudentRequestDTO registration(boolean matriculated) {
+    var request = studentRequest();
+    request.setRut("22.222.222-2");
+    request.setEmail("new@example.cl");
+    request.setCareerId(student.getCareer().getId());
+    request.setMatriculated(matriculated);
+    request.setAcademicPeriodId(matriculated ? period.getId() : null);
+    when(keycloak.createUser("new@example.cl", "Ana", "Pérez", "STUDENT"))
+        .thenReturn(
+            new KeycloakAdminService.CreatedUser(
+                "new-student", "new", "temporary", "registration"));
+    return request;
+  }
+
+  @Test
+  void studentRegistrationWithMatriculationEnablesEnrollment() {
+    var result = studentService.createStudent(registration(true));
+    reload();
+    var record =
+        matriculations
+            .findByStudentIdAndAcademicPeriodId(result.getStudent().getId(), period.getId())
+            .orElseThrow();
+    assertFalse(record.getEnrollmentConfirmed());
+    var request = request();
+    request.setStudentId(result.getStudent().getId());
+    var enrollment = enrollmentService.createEnrollment(request);
+    reload();
+    assertEquals(
+        EnrollmentStatus.ACTIVO,
+        enrollments.findById(enrollment.getId()).orElseThrow().getStatus());
+    assertEquals(1, matriculations.count());
+  }
+
+  @Test
+  void studentRegistrationWithoutMatriculationBlocksEnrollment() {
+    var result = studentService.createStudent(registration(false));
+    reload();
+    assertTrue(students.findById(result.getStudent().getId()).isPresent());
+    assertEquals(0, matriculations.count());
+    var request = request();
+    request.setStudentId(result.getStudent().getId());
+    rejects(409, () -> enrollmentService.createEnrollment(request));
+    assertEquals(0, enrollments.count());
+  }
+
+  @Test
+  void studentRegistrationRejectsMatriculationInClosedPeriod() {
+    var request = registration(true);
+    period.setStatus(AcademicPeriodStatus.CERRADO);
+    em.flush();
+    rejects(409, () -> studentService.createStudent(request));
+    assertEquals(1, students.count());
+    assertEquals(0, matriculations.count());
+    verify(keycloak, never()).createUser(anyString(), anyString(), anyString(), anyString());
   }
 
   @Test

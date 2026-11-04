@@ -34,4 +34,10 @@ public class StudentRequestDTO {
 
     @JsonDeserialize(using = LongRequestDeserializer.class)
     private Long studyPlanId;
+
+    // Administrative matriculation recorded when the student is registered.
+    private Boolean matriculated;
+
+    @JsonDeserialize(using = LongRequestDeserializer.class)
+    private Long academicPeriodId;
 }

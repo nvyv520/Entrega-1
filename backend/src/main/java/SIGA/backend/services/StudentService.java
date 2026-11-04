@@ -1,6 +1,10 @@
 package SIGA.backend.services;
 
 import SIGA.backend.entities.CareerEntity;
+import SIGA.backend.entities.AcademicPeriodEntity;
+import SIGA.backend.entities.PeriodMatriculationEntity;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import SIGA.backend.entities.AcademicPeriodStatus;
 import SIGA.backend.entities.Status;
 import SIGA.backend.entities.EnrollmentEntity;
@@ -47,6 +51,7 @@ public class StudentService {
     private final GradeRepository gradeRepository;
     private final TeacherRepository teacherRepository;
     private final KeycloakAdminService keycloakAdminService;
+    private final EntityManager entityManager;
     
     // retrieve all student 
     @Transactional (readOnly = true)
@@ -155,6 +160,32 @@ public class StudentService {
 
 
     
+    // Matriculation is specific to an academic period and independent of selection confirmation.
+    private AcademicPeriodEntity validateInitialMatriculation(StudentRequestDTO student) {
+        if (student.getMatriculated() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Indica si el estudiante está matriculado: sí o no");
+        }
+        if (!student.getMatriculated()) {
+            if (student.getAcademicPeriodId() != null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Solo selecciona un período si el estudiante está matriculado");
+            }
+            return null;
+        }
+        if (student.getAcademicPeriodId() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El período de matrícula es obligatorio");
+        }
+        AcademicPeriodEntity period = entityManager.find(AcademicPeriodEntity.class,
+                student.getAcademicPeriodId(), LockModeType.PESSIMISTIC_WRITE);
+        if (period == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Período académico no encontrado");
+        }
+        if (period.getStatus() != AcademicPeriodStatus.ABIERTO) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "La matrícula debe corresponder a un período abierto");
+        }
+        return period;
+    }
+
+
     // create a student
     @Transactional
     public StudentRegistrationResponseDTO createStudent(StudentRequestDTO student) {
@@ -186,6 +217,8 @@ public class StudentService {
 
         String firstName = AcademicPersonValidation.normalizeName(student.getFirstName(), null);
         String lastName = AcademicPersonValidation.normalizeName(student.getLastName(), null);
+
+        AcademicPeriodEntity matriculationPeriod = validateInitialMatriculation(student);
 
         // create Keycloak user
         KeycloakAdminService.CreatedUser keycloakUser =
@@ -222,6 +255,14 @@ public class StudentService {
         newStudent.setKeycloakSubject(keycloakUser.keycloakSubject());
 
         StudentEntity saved = studentRepository.saveAndFlush(newStudent);
+
+        if (matriculationPeriod != null) {
+            PeriodMatriculationEntity matriculation = new PeriodMatriculationEntity();
+            matriculation.setStudent(saved);
+            matriculation.setAcademicPeriod(matriculationPeriod);
+            matriculation.setEnrollmentConfirmed(false);
+            periodMatriculationRepository.save(matriculation);
+        }
 
         return new StudentRegistrationResponseDTO(
                 new StudentResponseDTO(saved),

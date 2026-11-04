@@ -148,7 +148,7 @@ public class EnrollmentService {
     // Finds the internal record used to confirm the student's selection.
     private PeriodMatriculationEntity findMatriculation(Long studentId, Long periodId) {
         return matriculationRepository.findByStudentIdAndAcademicPeriodId(studentId, periodId).orElseThrow(() -> 
-                new ResponseStatusException(HttpStatus.CONFLICT, "No existe un registro de seleccion del estudiante en este periodo"));
+                new ResponseStatusException(HttpStatus.CONFLICT, "El estudiante no está matriculado en este período académico"));
     }
 
 
@@ -406,6 +406,8 @@ public class EnrollmentService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "El periodo academico debe estar abierto");
         }
 
+        findMatriculation(student.getId(), periodId);
+
         Long planId = student.getStudyPlan().getId();
         List<SectionEntity> sections = sectionRepository.findByAcademicPeriodId(periodId);
         List<EnrollmentEntity> enrollments = enrollmentRepository
@@ -465,6 +467,7 @@ public class EnrollmentService {
 
         StudentEntity student = lockStudent(enrollment.getStudentId());
 
+        findMatriculation(student.getId(), periodId);
         validateSelectionChange(student.getId(), periodId);
 
         SectionEntity section = findLockedSectionById(enrollment.getSectionId());
@@ -508,15 +511,6 @@ public class EnrollmentService {
         validateCapacity(section);
         validateMaximumSubjects(student, section);
         validateSemesterPriority(student, section);
-
-        // Creates the internal confirmation record on the first valid selection.
-        if (!matriculationRepository.existsByStudentIdAndAcademicPeriodId(student.getId(), periodId)) {
-            PeriodMatriculationEntity matriculation = new PeriodMatriculationEntity();
-            matriculation.setStudent(student);
-            matriculation.setAcademicPeriod(section.getAcademicPeriod());
-            matriculation.setEnrollmentConfirmed(false);
-            matriculationRepository.save(matriculation);
-        }
 
         EnrollmentEntity saved;
 

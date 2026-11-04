@@ -13,6 +13,7 @@ function AdminStudents() {
     const plans = useAdminRecords("/study-plans");
     const enrollments = useAdminRecords("/enrollments");
     const matriculations = useAdminRecords("/period-matriculations");
+    const periods = useAdminRecords("/academic-periods");
     const [search, setSearch] = useState("");
     const [careerId, setCareerId] = useState("");
     const [studyPlanId, setStudyPlanId] = useState("");
@@ -23,7 +24,7 @@ function AdminStudents() {
     const [remove, setRemove] = useState(null);
     const [query, setQuery] = useState(null);
     const [message, setMessage] = useState("");
-    const saved = () => { students.reload(); setMessage("Operación realizada correctamente."); };
+    const saved = () => { students.reload(); matriculations.reload(); setMessage("Operación realizada correctamente."); };
     const selectorsReady = !careers.loading && !plans.loading && !careers.error && !plans.error;
     const hasHistory = id => enrollments.rows.some(row => row.studentId === id);
     // Blocks career and plan changes until enrollment records can be checked
@@ -52,7 +53,7 @@ function AdminStudents() {
     return <Stack spacing={3}>
         <Typography variant="h5" fontWeight={600}>Estudiantes</Typography>
         {message && <Alert severity="success" onClose={() => setMessage("")}>{message}</Alert>}
-        {[careers, plans, enrollments, matriculations].filter(records => records.error).map((records, index) => <Alert key={index} severity="error" action={<Button onClick={records.reload}>Reintentar</Button>}>{records.error}</Alert>)}
+        {[careers, plans, enrollments, matriculations, periods].filter(records => records.error).map((records, index) => <Alert key={index} severity="error" action={<Button onClick={records.reload}>Reintentar</Button>}>{records.error}</Alert>)}
         <Stack direction="row" spacing={1.5} useFlexGap sx={{ flexWrap: "wrap", alignItems: "center" }}>
             <TextField size="small" label="Buscar por RUT, nombre, apellido o correo" value={search} onChange={event => setSearch(event.target.value)} sx={{ width: 320 }} />
             <TextField size="small" select label="Carrera" value={careerId} onChange={event => { const value = event.target.value; setCareerId(value); if (value && !plans.rows.some(row => String(row.id) === String(studyPlanId) && String(row.careerId) === String(value))) setStudyPlanId(""); }} sx={{ width: 180 }} disabled={careers.loading || Boolean(careers.error)}>
@@ -68,7 +69,7 @@ function AdminStudents() {
                 {[["REGULAR", "REGULAR"], ["POSTERGACION", "POSTERGACIÓN"], ["RETIRO_TEMPORAL", "RETIRO TEMPORAL"], ["EGRESADO", "EGRESADO"], ["ELIMINADO", "ELIMINADO"]].map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}
             </TextField>
             <Button size="small" onClick={() => { setSearch(""); setCareerId(""); setStudyPlanId(""); setStatus(""); }}>Limpiar filtros</Button>
-            <Button variant="contained" disabled={!selectorsReady} onClick={() => { setFieldErrors({}); setForm({ rut: "", firstName: "", lastName: "", email: "", careerId: "", studyPlanId: "" }); }}>Registrar estudiante</Button>
+            <Button variant="contained" disabled={!selectorsReady} onClick={() => { setFieldErrors({}); setForm({ rut: "", firstName: "", lastName: "", email: "", careerId: "", studyPlanId: "", matriculated: "", academicPeriodId: "" }); }}>Registrar estudiante</Button>
         </Stack>
         <AdminTable title="Estudiantes" filtered records={{ ...students, rows }} columns={[
             ["rut", "RUT"], ["firstName", "Nombre"], ["lastName", "Apellido"], ["email", "Correo"], ["careerId", "Carrera", row => careerName(row.careerId)], ["studyPlanId", "Plan", row => planName(row.studyPlanId)], ["status", "Estado"],
@@ -76,7 +77,7 @@ function AdminStudents() {
         ]} actions={row => <>
             <Button onClick={() => { setFieldErrors({}); setEditField(""); setForm({ ...row }); }}>Editar</Button>
         </>} />
-        {form && <AdminForm title={`${form.id ? "Editar" : "Registrar"} estudiante`} onClose={() => setForm(null)} onSubmit={async () => {
+        {form && <AdminForm title={`${form.id ? "Editar" : "Registrar"} estudiante`} onClose={() => setForm(null)} submitDisabled={!form.id && form.matriculated === "yes" && (periods.loading || Boolean(periods.error) || !periods.rows.some(row => row.status === "ABIERTO" && String(row.id) === String(form.academicPeriodId)))} onSubmit={async () => {
             if (form.id && editField === "status") {
                 await http.patch(`/students/${form.id}/status`, null, { params: { status: form.status } });
             } else {
@@ -85,6 +86,8 @@ function AdminStudents() {
                 if (form.id) await saveAdminFields("/students", form.id, data, [...fields.map(([field]) => field), "careerId", "studyPlanId"], editField === "name" ? ["firstName", "lastName"] : editField === "relations" ? ["careerId", "studyPlanId"] : [editField]);
                 else {
                     delete data.studyPlanId;
+                    data.matriculated = form.matriculated === "yes";
+                    data.academicPeriodId = data.matriculated ? Number(form.academicPeriodId) : null;
                     const response = await http.post("/students", data);
                     setCredentials({
                         username: response.data.username,
@@ -107,6 +110,16 @@ function AdminStudents() {
                 {plans.rows.filter(row => String(row.careerId) === String(form.careerId)).map(row => <MenuItem key={row.id} value={row.id}>{row.identifier} ({row.careerCode}) — {row.status}</MenuItem>)}
             </TextField>}
             {(!form.id || editField === "relations") && <Alert severity="info">El backend asigna el plan vigente al registrar. No se permite cambiar carrera o plan si existe información académica.</Alert>}
+            {!form.id && <>
+                <TextField required select label="Matriculado" value={form.matriculated} onChange={event => setForm({ ...form, matriculated: event.target.value, academicPeriodId: "" })}>
+                    <MenuItem value="yes">Sí</MenuItem>
+                    <MenuItem value="no">No</MenuItem>
+                </TextField>
+                {form.matriculated === "yes" && <TextField required select label="Período de matrícula" value={form.academicPeriodId} disabled={periods.loading || Boolean(periods.error)} onChange={event => setForm({ ...form, academicPeriodId: event.target.value })} helperText={periods.loading ? "Cargando períodos…" : periods.error ? "No se pudieron cargar los períodos. Reintenta la consulta." : !periods.rows.some(row => row.status === "ABIERTO") ? "No hay períodos abiertos. Crea o habilita uno antes de registrar la matrícula." : "Selecciona el período académico al que corresponde la matrícula."}>
+                    {periods.rows.filter(row => row.status === "ABIERTO").map(row => <MenuItem key={row.id} value={row.id}>{row.code}</MenuItem>)}
+                </TextField>}
+                <Alert severity="info">La matrícula habilita la inscripción de asignaturas en el período seleccionado. Si eliges No, el estudiante se registra sin matrícula y no podrá inscribir asignaturas.</Alert>
+            </>}
             {form.id && editField === "status" && <>
                 <Alert severity="warning">EGRESADO y ELIMINADO se calculan automáticamente y son irreversibles.</Alert>
                 <TextField required select label="Estado académico" value={form.status} onChange={event => setForm({ ...form, status: event.target.value })}>

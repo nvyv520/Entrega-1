@@ -99,6 +99,7 @@ public final class ServiceFixtures {
     r.setLastName("Pérez");
     r.setEmail("ana@example.cl");
     r.setCareerId(1L);
+    r.setMatriculated(false);
     return r;
   }
 

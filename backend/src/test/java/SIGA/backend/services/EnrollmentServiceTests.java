@@ -81,12 +81,22 @@ class EnrollmentServiceTests {
   }
 
   @Test
-  void newReservationCreatesMatriculationAndResetsConfirmation() {
+  void newReservationUsesExistingMatriculationAndResetsConfirmation() {
     assertEquals(EnrollmentStatus.ACTIVO, s.createEnrollment(r).getStatus());
-    verify(matriculations, times(2)).save(any());
+    verify(matriculations).save(matriculation);
     verify(repo).flush();
     verify(sections).save(entity.getSection());
     assertFalse(matriculation.getEnrollmentConfirmed());
+  }
+
+  @Test
+  void missingMatriculationCannotCreateReservationOrAccessCatalogue() {
+    when(matriculations.findByStudentIdAndAcademicPeriodId(5L, 3L)).thenReturn(Optional.empty());
+    rejects(409, () -> s.createEnrollment(r));
+    rejects(409, () -> s.getCurrentStudentEligibleSections("student", 3L));
+    verify(repo, never()).save(any());
+    verify(matriculations, never()).save(any());
+    verify(sections, never()).save(any());
   }
 
   @Test
