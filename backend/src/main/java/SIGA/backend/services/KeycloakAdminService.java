@@ -10,7 +10,6 @@ import java.util.Collections;
 import java.util.Objects;
 import java.text.Normalizer;
 import java.util.Locale;
-import java.time.Year;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -171,17 +170,17 @@ public class KeycloakAdminService {
 
 
     // Uses predictable passwords only with the explicit local fictitious-data settings.
-    private String generateTemporaryPassword(String firstName) {
+    private String generateTemporaryPassword(String email) {
         String[] profiles = environment.getActiveProfiles();
         if (!localFictitiousPasswords || profiles.length != 1 || !"local-fictitious".equals(profiles[0])) {
             return generateTemporaryPassword();
         }
 
-        String name = normalizeUsername(firstName.trim().split("\\s+")[0]);
-        if (name.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El primer nombre no permite generar una contraseña temporal valida");
+        String emailPrefix = email.split("@", 2)[0];
+        if (emailPrefix.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El correo no permite generar una contraseña temporal valida");
         }
-        return name + Year.now().getValue();
+        return emailPrefix + "123";
     }
 
 
@@ -440,7 +439,7 @@ public class KeycloakAdminService {
 
         String email = username.trim();
         String login = email;
-        String password = generateTemporaryPassword(firstName);
+        String password = generateTemporaryPassword(email);
         String subject = null;
         String registrationId = UUID.randomUUID().toString();
         String stage = "obtener autorización";
